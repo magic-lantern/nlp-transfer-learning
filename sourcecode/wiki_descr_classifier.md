@@ -5,7 +5,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.1'
-      jupytext_version: 1.1.7
+      jupytext_version: 1.2.1
   kernelspec:
     display_name: Python 3
     language: python
@@ -51,6 +51,7 @@ pct_data_sample = 0.1
 valid_pct = 0.2
 # for repeatability - different seed than used with language model
 seed = 1776
+lm_seed = 42
 # batch size of 96 GPU needs more than 16GB RAM
 # batch size of 64 GPU uses 16GB RAM
 # batch size of 48 GPU uses ??GB RAM
@@ -93,24 +94,9 @@ print('Unique Categories:', len(df.CATEGORY.unique()))
 print('Unique Descriptions:', len(df.DESCRIPTION.unique()))
 ```
 
-<!-- #region -->
-Original section from lesson3
-```python
-data_clas = (TextList.from_folder(path, vocab=data_lm.vocab)
-             #grab all the text files in path
-             .split_by_folder(valid='test')
-             #split by train and valid folder (that only keeps 'train' and 'test' so no need to filter)
-             .label_from_folder(classes=['neg', 'pos'])
-             #label them all with their folders
-             .databunch(bs=bs))
-
-data_clas.save('data_clas.pkl')
-```
-<!-- #endregion -->
-
 ### Normally you would use transfer learning to adjust the language model to the new data.
 
-In this case, I just want to test how the classifier would work without fine-tuning the language model
+In this case, I just want to test how the classifier would work without fine-tuning the language model. This is taking the WT-103 pretrained weights and updating the vocabulary to match MIMIC with no new training.
 
 ```python
 %%time
@@ -124,7 +110,7 @@ else:
     print('creating new language model')
     lm = (TextList.from_df(df, base_path, cols='TEXT')
                #df has several columns; actual text is in column TEXT
-               .split_by_rand_pct(valid_pct=valid_pct, seed=seed)
+               .split_by_rand_pct(valid_pct=valid_pct, seed=lm_seed)
                #We randomly split and keep 10% for validation
                .label_for_lm()
                #We want to do a language model so we label accordingly
@@ -146,7 +132,6 @@ filename = base_path/class_file
 if os.path.isfile(filename):
     data_cl = load_data(base_path, class_file, bs=bs)
 else:
-    # do I need a vocab here? test with and without...
     data_cl = (TextList.from_df(df, base_path, cols='TEXT', vocab=lm.vocab)
                #df has several columns; actual text is in column TEXT
                .split_by_rand_pct(valid_pct=valid_pct, seed=seed)
@@ -158,8 +143,15 @@ else:
 ```
 
 ```python
+f_score = partial(fbeta, thresh=0.2, beta = 1)
+learn = language_model_learner(data_lm, pretrained_model=URLs.WT103, drop_mult=0.3)
+
+learn.metrics = listify([acc_02,f_score])
+```
+
+```python
 learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5)
-#learn.load_encoder(enc_file)
+learn.load_encoder(enc_file)
 ```
 
 ```python

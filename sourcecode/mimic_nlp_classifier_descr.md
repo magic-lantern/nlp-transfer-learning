@@ -5,7 +5,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.1'
-      jupytext_version: 1.1.7
+      jupytext_version: 1.2.1
   kernelspec:
     display_name: Python 3
     language: python
@@ -111,6 +111,22 @@ data_clas = (TextList.from_folder(path, vocab=data_lm.vocab)
 data_clas.save('data_clas.pkl')
 ```
 <!-- #endregion -->
+
+```python
+len(df.ROW_ID.unique())
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
 
 ```python
 if os.path.isfile(base_path/lm_file):
