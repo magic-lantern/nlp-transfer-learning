@@ -38,19 +38,21 @@ To date, the successes seen with transfer learning in NLP have focused on genera
 
 \section*{Methods}
 
-For this study, we have used the Medical Information Mart for Intensive Care (MIMIC) III \cite{johnson_mimic-iii_2016} data set which contains both clinical notes as well as a wide array of more structured data. Although the MIMIC dataset is comprised primarily of inpatient ICU stays, some outpatient notes are included. The patient population includes 38,597 distinct adult patients admitted between 2001 and 2012 as well as 7,870 neonates admitted between 2001 and 2008. Our cohort from MIMIC consisted of a random 10\% sample (2,083,180) of clinical notes using the Pandas Python library \cite{mckinney-proc-scipy-2010} with different seeds for the language model vs classification tasks to reduce overlap. All experiments were carried out on a virtual machine with 6 virtual CPUs, 32GB RAM, 200GB of virtualized disk space, and an Nvidia Tesla P100 GPU with 16GB of GPU RAM. 
+For this study, we have used the Medical Information Mart for Intensive Care (MIMIC) III \cite{johnson_mimic-iii_2016} data set which contains both clinical notes as well as a wide array of more structured data. Although the MIMIC dataset is comprised primarily of inpatient ICU stays, some outpatient notes are included. The patient population includes 38,597 distinct adult patients admitted between 2001 and 2012 as well as 7,870 neonates admitted between 2001 and 2008. Our cohort from MIMIC consisted of a random 10\% sample without replacement (2,083,180) of clinical notes using the Pandas Python library \cite{mckinney-proc-scipy-2010} with different seeds for the language model vs classification tasks to reduce overlap. All experiments were carried out on a virtual machine with 6 virtual CPUs, 32GB RAM, 200GB of virtualized disk space, and an Nvidia Tesla P100 GPU with 16GB of GPU RAM. 
 
 We conducted several experiments to evaluate the usefulness of transfer learning in clinical NLP. The basis for transfer learning in this clinical NLP work is the use of a language model. NLP transfer learning is similar to transfer learning in computer vision where a computer vision general model can recognize general image features such as lines, circles, edges, and other patterns. In NLP transfer learning, a language model is trained to predict and recognize language features in terms of probabilities at both the word and sentence level \cite{Bengio:2003:NPL:944919.944966}. Language models are trained in an unsupervised fashion by having the model predict the next word in a sentence of text given previous words.
 
 Our first experiment was to take an existing language model derived from Wikipedia articles (WT-103) \cite{Merity2016Sep} and retrain it with clinical text. The neural network architecture chosen was based on Averaged Stochastic Gradient Weight-Dropped LSTM (AWD-LSTM) \cite{Merity2017Aug}. Text was prepared by tokenization (identifying separate words, numbers, symbols) and then conversion of those tokens to a number. Special tokens are inserted into the sentences to preserve the original text structure such as capitalization, repeated words, and identification words not in the vocabulary list. No stemming, lemmatization, nor stop word removal was performed.
 
-Once the language model was fine-tuned against a random sample of MIMIC clinical notes, we used the language model for 2 separate classification tasks. The first classification task was to predict the value stored in the DESCRIPTION field; in NOTEEVENTS, CATEGORY and DESCRIPTION are used to define the type of clinical note. The second classification task was to predict length of stay (ADMISSIONS.DISCHTIME - ADMISSIONS.ADMITTIME) binned into 0 through 9 days and > 9 days. For comparison, we also performed the classification task with no langauge model fine tuning to compare accuracy over 10 epochs of training.
+Once the language model was fine-tuned against a random sample of MIMIC clinical notes, we used the language model for 2 separate classification tasks. The first classification task was to predict the value stored in the DESCRIPTION field; in NOTEEVENTS, CATEGORY and DESCRIPTION are used to define the type of clinical note. The second classification task was to predict length of stay (ADMISSIONS.DISCHTIME - ADMISSIONS.ADMITTIME) binned into 0 through 9 days and > 9 days. For comparison, we also performed the classification task with no language model fine tuning to compare accuracy over 10 epochs of training.
 
 \section*{Results}
 
-For the language model, we use 60,000 as the vocabulary size. There are 14,655 tokens that overlap between WT-103 language model and MIMIC language model; e.g. words such as 'circumference' and 'purple' exist in both. Words unique to the MIMIC langauge model include examples such as 'transgastric', 'dysregulation', and 'bronchiectasis'. Overall there is about 25\% overlap in vocabulary.
+For the language model, we used 60,000 as the vocabulary size. There are 14,655 tokens that overlap between WT-103 language model and MIMIC language model; e.g. words such as 'circumference' and 'purple' exist in both. Words unique to the MIMIC language model include examples such as 'transgastric', 'dysregulation', and 'bronchiectasis'. Overall there is about 25\% overlap in vocabulary. With 1 frozen (adjusting weights of last layer only) and 10 unfrozen (adjusting weights of all layers) epochs, the model is goes from 55.9\% accuracy to 67.7\% accuracy at predicting the next word in a clinical note. The resulting model is about 550MB in size
 
-In our random sample of notes, there are 1,708 distinct DESCRIPTION values present.
+For the DESCRIPTION classifier, there was a 9.91\% (20,648 notes) overlap between notes used for training and validating the language model and training and validating the DESCRIPTION classifier. There are 1,708 distinct DESCRIPTION values present. When starting with a MIMIC fine-tuned language model,  accuracy goes from 90.5\% to 9X.X\% with X epochs of training. By comparison, starting with a non-fine-tuned language model, accuracy goes from 86.5\% to XX.X\% with X epochs of training.
+
+For the length of stay classifier...
 
 \section*{Discussion}
 
@@ -59,39 +61,8 @@ Some discussion text here
 Future work - bi-directional language model ala BERT; transformer based architecture also shown impressive results but requires much more training/GPU resources...
 Current work can be performed on a single GPU
 
-\section*{Another Major Heading and References}
-This sentence and has two reference citations\cite{ref1,ref2}.
-
-More text of an additional paragraph, with a figure reference (Figure ~\ref{fig1}) and a figure inside a Word text box
-below.  Figures need to be placed as close to the corresponding text as possible and not extend beyond one page.\\
-\begin{figure}[h!]
-\centering
-\includegraphics[scale=1]{figures/figure1.png}
-\caption{Total allergy alerts, overridden alerts, or drug order cancelled.}
-\label{fig1}
-\end{figure}
-
-This paragraph contains a reference to a table just below (Table 1).  All tables need to be placed as close to the 
-corresponding text as possible, But each individual table should be on one page and not extend to multiple pages
- unless labeled as ``��Continued"��.
-
-This is another paragraph.
-
 \section*{Conclusion}
-Your conclusion goes at the end, followed by References, which must follow the Vancouver Style (see: www.icmje.org/index.html).  References begin below with a header that is centered.  Only the first word of an article title is capitalized in the References. 
-
-\section*{Project TO DO:}
-
-\begin{itemize}
-	\item Create conda environment.yml that allows users to setup requirements for project
-  \item Document how to:
-  \begin{itemize}
-    \item Get data
-    \item Fine tune language model
-    \item Run classification tasks
-  \end{itemize}
-  \item Create separate notebook for results section of paper (e.g. comparison of vocab)
-\end{itemize}
+Conclusions here.
 
 \bibliography{bib}
 \bibliographystyle{vancouver}
