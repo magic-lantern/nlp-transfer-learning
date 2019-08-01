@@ -16,7 +16,6 @@
 
 \begin{document}
 
-
 \title{Learning from others: Transfer learning in medical NLP}
 
 \author{Seth Russell, MS$^{1}$, Firstname B. Lastname, Degrees$^{2}$}
@@ -35,23 +34,23 @@
 
 In the natural language processing (NLP) machine learning domain, great success has been found recently through the creation of language models built in an unsupervised fashion. Derived from successes seen with transfer learning in domains such as imaging, one early publication \cite{howard_universal_2018} showed success with NLP transfer learning. Building upon this work primarily through the use of massive data sets and compute power \cite{radford_improving_2018,radford_language_2019} resulted in new records on various benchmark tests for state of the art NLP.
 
-To date, the successes seen with transfer learning in NLP have focused on general English non-medical text. The contribution of this work is to demonstrate the effectiveness of the transfer learn techniques
+To date, the successes seen with transfer learning in NLP have focused on general English non-medical text. The contribution of this work is to demonstrate the effectiveness of the transfer learn techniques. In order to improve reproducibility and replicability, we have made all of our source code publicly available \footnote{\url{https://github.com/magic-lantern/nlp-transfer-learning}}.
 
 \section*{Methods}
 
-For this study, we have used the Medical Information Mart for Intensive Care (MIMIC) III \cite{johnson_mimic-iii_2016} data set which contains both clinical notes as well as a wide array of more structured data. Although the MIMIC dataset is comprised primarily of inpatient ICU stays, some outpatient notes are included. The patient population includes 38,597 distinct adult patients admitted between 2001 and 2012 as well as 7870 neonates admitted between 2001 and 2008. Our cohort from MIMIC consisted of a random 10\% sample of clinical notes using the Pandas Python library \cite{mckinney-proc-scipy-2010}. All experiments were carried out on a virtual machine with 6 virtual CPUs, 32GB RAM, 200GB of virtualized disk space, and an Nvidia Tesla P100 GPU with 16GB of GPU RAM. 
+For this study, we have used the Medical Information Mart for Intensive Care (MIMIC) III \cite{johnson_mimic-iii_2016} data set which contains both clinical notes as well as a wide array of more structured data. Although the MIMIC dataset is comprised primarily of inpatient ICU stays, some outpatient notes are included. The patient population includes 38,597 distinct adult patients admitted between 2001 and 2012 as well as 7,870 neonates admitted between 2001 and 2008. Our cohort from MIMIC consisted of a random 10\% sample (2,083,180) of clinical notes using the Pandas Python library \cite{mckinney-proc-scipy-2010} with different seeds for the language model vs classification tasks to reduce overlap. All experiments were carried out on a virtual machine with 6 virtual CPUs, 32GB RAM, 200GB of virtualized disk space, and an Nvidia Tesla P100 GPU with 16GB of GPU RAM. 
 
-We conducted several experiments to evaluate the usefulness of transfer learning in clinical NLP. The basis for transfer learning in this clinical NLP work is the use of a language model. Similar to transfer learning in computer vision, a computer vision general model can recognize general image features such as lines, circles, and other patterns, a language model is trained to predict and recognize language features in terms of probabilities at both the word and sentence level \cite{Bengio:2003:NPL:944919.944966}. Language models are trained in an unsupervised fashion by having the model predict the next word in a batch of text given previous words.
+We conducted several experiments to evaluate the usefulness of transfer learning in clinical NLP. The basis for transfer learning in this clinical NLP work is the use of a language model. NLP transfer learning is similar to transfer learning in computer vision where a computer vision general model can recognize general image features such as lines, circles, edges, and other patterns. In NLP transfer learning, a language model is trained to predict and recognize language features in terms of probabilities at both the word and sentence level \cite{Bengio:2003:NPL:944919.944966}. Language models are trained in an unsupervised fashion by having the model predict the next word in a sentence of text given previous words.
 
-Our first experiment was to take an existing language model derived from Wikipedia articles (WT-103) \cite{Merity2016Sep} and retrain it with clinical text. The neural network architecture chosen was based on ASGD Weight-Dropped LSTM (AWD-LSTM) \cite{Merity2017Aug} comprised of layers? 
+Our first experiment was to take an existing language model derived from Wikipedia articles (WT-103) \cite{Merity2016Sep} and retrain it with clinical text. The neural network architecture chosen was based on Averaged Stochastic Gradient Weight-Dropped LSTM (AWD-LSTM) \cite{Merity2017Aug}. Text was prepared by tokenization (identifying separate words, numbers, symbols) and then conversion of those tokens to a number. Special tokens are inserted into the sentences to preserve the original text structure such as capitalization, repeated words, and identification words not in the vocabulary list. No stemming, lemmatization, nor stop word removal was performed.
 
-NOTES:
-First - fine tune langauge model
-Next - test performance of language model on categorical tasks: 1) description 2) length of stay
+Once the language model was fine-tuned against a random sample of MIMIC clinical notes, we used the language model for 2 separate classification tasks. The first classification task was to predict the value stored in the DESCRIPTION field; in NOTEEVENTS, CATEGORY and DESCRIPTION are used to define the type of clinical note. The second classification task was to predict length of stay (ADMISSIONS.DISCHTIME - ADMISSIONS.ADMITTIME) binned into 0 through 9 days and > 9 days. For comparison, we also performed the classification task with no langauge model fine tuning to compare accuracy over 10 epochs of training.
 
 \section*{Results}
 
 For the language model, we use 60,000 as the vocabulary size. There are 14,655 tokens that overlap between WT-103 language model and MIMIC language model; e.g. words such as 'circumference' and 'purple' exist in both. Words unique to the MIMIC langauge model include examples such as 'transgastric', 'dysregulation', and 'bronchiectasis'. Overall there is about 25\% overlap in vocabulary.
+
+In our random sample of notes, there are 1,708 distinct DESCRIPTION values present.
 
 \section*{Discussion}
 
@@ -76,24 +75,6 @@ This paragraph contains a reference to a table just below (Table 1).  All tables
 corresponding text as possible, But each individual table should be on one page and not extend to multiple pages
  unless labeled as ``��Continued"��.
 
-\begin{table}[h]
-\centering
-\caption{Submission type, abstract length, and page length maximum for AMIA submissions.}
-  \begin{tabular}{|l|l|l|}
-  \hline
-    \textbf{Submission Type}    & \textbf{Abstract Length}  & \textbf{Page Length Maximum**} \\ \hline
-    Paper  & 125-150 words  & Ten   \\ \hline
-    Student Paper  & 125-150 words  & Ten \\ \hline
-    Poster  &50-75 words*   & One \\ \hline
-    Podium  Abstract & 50-75 words*  & Two \\ \hline
-    Panel   &150-200 words  & Three \\ \hline
-    System Demonstrations    &150-200 words  & One \\ \hline
-  \end{tabular}
-\end{table}
-*: All podium abstract and poster submissions must have a brief (50-75 words) abstract. The abstract does NOT have to be part of the document, but must be entered on the submission website in the Abstract box in Step 2.
-
-**: \textcolor{red}{If your submission is longer than what is specified below, it will be rejected without review.}
-
 This is another paragraph.
 
 \section*{Conclusion}
@@ -102,7 +83,14 @@ Your conclusion goes at the end, followed by References, which must follow the V
 \section*{Project TO DO:}
 
 \begin{itemize}
-	\item Create Conda environment.yml that allows users to setup requirements for project
+	\item Create conda environment.yml that allows users to setup requirements for project
+  \item Document how to:
+  \begin{itemize}
+    \item Get data
+    \item Fine tune language model
+    \item Run classification tasks
+  \end{itemize}
+  \item Create separate notebook for results section of paper (e.g. comparison of vocab)
 \end{itemize}
 
 \bibliography{bib}
