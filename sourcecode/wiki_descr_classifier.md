@@ -171,6 +171,9 @@ learn.recorder.plot()
 ```
 
 Change learning rate based on results from the above plot
+
+     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	0.871917 	0.646747 	0.862778 	0.839451 	18:41
 ```python
 if os.path.isfile(str(init_model_file) + '.pth'):
     learn.load(init_model_file)
@@ -187,6 +190,9 @@ else:
 ```
 
 Now need to fine tune
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.522397	1.165042	0.925112	0.909121	26:11
 
 ```python
 if os.path.isfile(str(freeze_two) + '.pth'):

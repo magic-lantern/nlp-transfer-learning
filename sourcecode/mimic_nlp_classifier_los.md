@@ -222,13 +222,42 @@ combined_fday.head()
 combined_fday.shape
 ```
 
+```python
+len(combined_fday.los.unique())
+```
+
+```python
+print(combined_fday.los.value_counts().head(10))
+print(combined_fday.los.value_counts().tail(10))
+```
+
+```python
+s = combined_fday.los.value_counts()
+len(s[s == 1])
+```
+
+### Truncate LOS to max of 10
+
+```python
+combined_fday[combined_fday.los > 9] = 10
+```
+
+```python
+s = combined_fday.los.value_counts()
+len(s[s == 1])
+```
+
+```python
+print(combined_fday.los.value_counts().head(15))
+```
+
 ### Histogram of number of notes by Hospital Admission - 10% random sample
 
 ```python
 alt.Chart(
-    combined_df.groupby('HADM_ID', as_index=False).TEXT.count().sample(frac=.1, random_state=seed)
+    combined_df.groupby('hadm_id', as_index=False).text.count().sample(frac=.01, random_state=seed)
 ).mark_bar().encode(
-    alt.X('TEXT', bin=alt.BinParams(maxbins=50)),
+    alt.X('text', bin=alt.BinParams(maxbins=50)),
     y='count()',
 )
 ```
@@ -236,44 +265,21 @@ alt.Chart(
 ### Scatter plot of Number of Notes vs Length of Stay
 
 ```python
-combined_df[['HADM_ID', 'los']].drop_duplicates().shape            #42,195
-combined_df.groupby('HADM_ID', as_index=False).TEXT.count().shape  #42,195
+combined_df[['hadm_id', 'los']].drop_duplicates().shape            #42,195
+combined_df.groupby('hadm_id', as_index=False).text.count().shape  #42,195
 ```
 
 ```python
-los_v_num_notes = pd.merge(combined_df[['HADM_ID', 'los']].drop_duplicates(), 
-          combined_df.groupby('HADM_ID', as_index=False).TEXT.count(),
-          on='HADM_ID')
+los_v_num_notes = pd.merge(combined_df[['hadm_id', 'los']].drop_duplicates(), 
+          combined_df.groupby('hadm_id', as_index=False).text.count(),
+          on='hadm_id')
 los_v_num_notes.shape
 ```
 
 ```python
-alt.Chart(los_v_num_notes.sample(frac=.1, random_state=seed)).mark_point().encode(
+alt.Chart(los_v_num_notes.sample(frac=.08, random_state=seed)).mark_point().encode(
     x=alt.X('los', axis=alt.Axis(title='Length of Stay (Days)')),
-    y=alt.Y('TEXT', axis=alt.Axis(title='Number of Notes')))
-```
-
-```python
-
-combined_df.groupby('HADM_ID')
-    
-```
-
-```python
-df[df.groupby('session')['url'].transform(lambda x : x.isin(valid_urls).any())]
-```
-
-```python
-combined_df[(combined_df.charttime >= combined_df.admittime) &
-            (combined_df.charttime < (combined_df.admittime + pd.Timedelta(hours=24)))].sort_values('HADM_ID')
-
-fd_df = combined_df[(combined_df.charttime >= combined_df.admittime) &
-                    (combined_df.charttime < (combined_df.admittime + pd.Timedelta(hours=24)))].sort_values('HADM_ID')
-len(fd_df.HADM_ID.unique())
-```
-
-```python
-
+    y=alt.Y('text', axis=alt.Axis(title='Number of Notes')))
 ```
 
 ```python
@@ -285,6 +291,10 @@ len(fd_df.HADM_ID.unique())
 ```
 
 ### Continuing on with Deep Learning
+
+```python
+df = combined_fday.sample(frac=pct_data_sample, random_state=seed)
+```
 
 ```python
 if os.path.isfile(base_path/lm_file):
@@ -300,19 +310,25 @@ else:
 filename = base_path/class_file
 if os.path.isfile(filename):
     data_cl = load_data(base_path, class_file, bs=bs)
+    print('loaded existing data bunch')
 else:
     # do I need a vocab here? test with and without...
-    data_cl = (TextList.from_df(df, base_path, cols='TEXT', vocab=lm.vocab)
+    data_cl = (TextList.from_df(df, base_path, cols='text', vocab=lm.vocab)
                #df has several columns; actual text is in column TEXT
                .split_by_rand_pct(valid_pct=valid_pct, seed=seed)
-               #We randomly split and keep 20% for validation, set see for repeatability
+               #We randomly split and keep 20% for validation, set seed for repeatability
                .label_from_df(cols='los')
                .databunch(bs=bs))
     data_cl.save(filename)
+    print('created new data bunch')
 ```
 
+### Using weighted F1 to account for class imbalance
+
+See https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+
 ```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5)
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
 learn.load_encoder(enc_file)
 ```
 
@@ -327,23 +343,83 @@ learn.recorder.plot()
 Change learning rate based on results from the above plot
 
 ```python
-learn.fit_one_cycle(1, 2e-2, moms=(0.8,0.7))
+if os.path.isfile(str(init_model_file) + '.pth'):
+    learn.load(init_model_file)
+    print('loaded initial learner')
+else:
+    print('Training new initial learner')
+    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+    print('Saving new learner')
+    learn.save(init_model_file)
+    print('Finished generating new learner')
 ```
 
-Now need to fine tune
+```python
+if os.path.isfile(str(freeze_two) + '.pth'):
+    learn.load(freeze_two)
+    print('loaded freeze_two learner')
+else:
+    print('Training new freeze_two learner')
+    learn.freeze_to(-2)
+    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
+    print('Saving new freeze_two learner')
+    learn.save(freeze_two)
+    print('Finished generating new freeze_two learner')
+```
+
+```python
+if os.path.isfile(str(freeze_three) + '.pth'):
+    learn.load(freeze_three)
+    print('loaded freeze_three learner')
+else:
+    print('Training new freeze_three learner')
+    learn.freeze_to(-3)
+    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
+    print('Saving new freeze_three learner')
+    learn.save(freeze_three)
+    print('Finished generating new freeze_three learner')
+```
 
 ```python
 learn.unfreeze()
 ```
 
 ```python
-
+learn.lr_find()
+learn.recorder.plot()
 ```
 
 ```python
-
+release_mem()
 ```
 
 ```python
+if os.path.isfile(cycles_file):
+    with open(cycles_file, 'rb') as f:
+        prev_cycles = pickle.load(f)
+    print('This model has been trained for', prev_cycles, 'epochs already')  
+else:
+    prev_cycles = 0
+```
 
+```python
+num_cycles = 7
+
+file = descr_ft_file + str(prev_cycles)
+learner_file = base_path/file
+callback_save_file = str(learner_file) + '_auto'
+
+learn.fit_one_cycle(num_cycles, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
+                    callbacks=[
+                        callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
+                        # CSVLogger only logs when num_cycles are complete
+                        callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                    ])
+file = descr_ft_file + str(prev_cycles + num_cycles)
+learner_file = base_path/file
+learn.save(learner_file)
+
+with open(cycles_file, 'wb') as f:
+    pickle.dump(num_cycles + prev_cycles, f)
+release_mem()
 ```
