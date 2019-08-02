@@ -38,7 +38,7 @@ To date, the successes seen with transfer learning in NLP have focused on genera
 
 \section*{Methods}
 
-For this study, we have used the Medical Information Mart for Intensive Care (MIMIC) III \cite{johnson_mimic-iii_2016} data set which contains both clinical notes as well as a wide array of more structured data. Although the MIMIC dataset is comprised primarily of inpatient ICU stays, some outpatient notes are included. The patient population includes 38,597 distinct adult patients admitted between 2001 and 2012 as well as 7,870 neonates admitted between 2001 and 2008. Our cohort from MIMIC consisted of a random 10\% sample without replacement (2,083,180) of clinical notes using the Pandas Python library \cite{mckinney-proc-scipy-2010} with different seeds for the language model vs classification tasks to reduce overlap. All experiments were carried out on a virtual machine with 6 virtual CPUs, 32GB RAM, 200GB of virtualized disk space, and an Nvidia Tesla P100 GPU with 16GB of GPU RAM. 
+For this study, we have used the Medical Information Mart for Intensive Care (MIMIC) III \cite{johnson_mimic-iii_2016} data set which contains both clinical notes as well as a wide array of more structured data. Although the MIMIC dataset is comprised primarily of inpatient ICU stays, some outpatient notes are included. The patient population includes 38,597 distinct adult patients admitted between 2001 and 2012 as well as 7,870 neonates admitted between 2001 and 2008. Our cohort from MIMIC consisted of a random 10\% sample without replacement (2,083,180) of clinical notes using the Pandas Python library \cite{mckinney-proc-scipy-2010} with different seeds for the language model vs classification tasks to reduce overlap. All experiments were carried out on a virtual machine with 6 virtual CPUs, 32GB RAM, 200GB of virtualized disk space, and an Nvidia Tesla P100 GPU with 16GB of GPU RAM.
 
 We conducted several experiments to evaluate the usefulness of transfer learning in clinical NLP. The basis for transfer learning in this clinical NLP work is the use of a language model. NLP transfer learning is similar to transfer learning in computer vision where a computer vision general model can recognize general image features such as lines, circles, edges, and other patterns. In NLP transfer learning, a language model is trained to predict and recognize language features in terms of probabilities at both the word and sentence level \cite{Bengio:2003:NPL:944919.944966}. Language models are trained in an unsupervised fashion by having the model predict the next word in a sentence of text given previous words.
 
@@ -50,19 +50,17 @@ Once the language model was fine-tuned against a random sample of MIMIC clinical
 
 For the language model, we used 60,000 as the vocabulary size. There are 14,655 tokens that overlap between WT-103 language model and MIMIC language model; e.g. words such as 'circumference' and 'purple' exist in both. Words unique to the MIMIC language model include examples such as 'transgastric', 'dysregulation', and 'bronchiectasis'. Overall there is about 25\% overlap in vocabulary. With 1 frozen (adjusting weights of last layer only) and 10 unfrozen (adjusting weights of all layers) epochs, the model is goes from 55.9\% accuracy to 67.7\% accuracy at predicting the next word in a clinical note. The resulting model is about 550MB in size
 
-For the DESCRIPTION classifier, there was a 9.91\% (20,648 notes) overlap between notes used for training and validating the language model and training and validating the DESCRIPTION classifier. There are 1,708 distinct DESCRIPTION values present. When starting with a MIMIC fine-tuned language model,  accuracy goes from 90.5\% to 9X.X\% with X epochs of training. By comparison, starting with a non-fine-tuned language model, accuracy goes from 86.5\% to XX.X\% with X epochs of training.
+For the DESCRIPTION classifier, there was a 9.91\% (20,648 notes) overlap between notes used for training and validating the language model and training and validating the DESCRIPTION classifier. There are 1,708 distinct DESCRIPTION values present, with most being labeled generically as 'Report' (54.5\%), and a long tail of decreasing frequency including 695 DESCRIPTIONS that are only used once . When starting with a MIMIC fine-tuned language model accuracy goes from 90.7\% to 9X.X\%, and weighted F1 from 0.88 to 0.XX, with X epochs of training. By comparison, starting with a non-fine-tuned language model, accuracy goes from 86.5\% to XX.X\%, and weighted F1 from XX to XX with X epochs of training.
 
 For the length of stay classifier...
 
 \section*{Discussion}
 
-Some discussion text here
-
-Future work - bi-directional language model ala BERT; transformer based architecture also shown impressive results but requires much more training/GPU resources...
-Current work can be performed on a single GPU
+One of the benefits of this method over larger and deeper neural networks is that this work can be performed on a single GPU with training times for language model at about 12 hours and each of the classifiers being trained in under 5 hours. Increased accuracy and F1 could also be achieved through more training epochs. More advanced network architectures based around the Transformer\cite{vaswani_attention_2017} have shown impressive results but require much more training time and GPU resources. Future work in this area could include the use of bi-directional language models such as BERT\cite{Devlin2018Oct}.
 
 \section*{Conclusion}
-Conclusions here.
+
+A few sentences here.
 
 \bibliography{bib}
 \bibliographystyle{vancouver}
