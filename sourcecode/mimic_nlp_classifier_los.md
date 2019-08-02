@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.1'
       jupytext_version: 1.2.1
   kernelspec:
-    display_name: Python 3
+    display_name: Python (fastai)
     language: python
-    name: python3
+    name: fastai
 ---
 
 # Based on our custom MIMIC language model, train a classifier
@@ -48,9 +48,13 @@ class_file = 'los_cl_data.pickle'
 notes_pickle_file = base_path/'noteevents.pickle'
 lm_file = 'mimic_lm.pickle' # actual file is at base_path/lm_file but due to fastai function, have to pass file name separately
 init_model_file = base_path/'los_cl_head'
-cycles_file = base_path/'cl_num_iterations.pickle'
+cycles_file = base_path/'los_cl_num_iterations.pickle'
 enc_file = 'mimic_fine_tuned_enc'
 ft_file = 'los_cl_fine_tuned_'
+freeze_two = 'los_cl_freeze_two'
+freeze_three = 'los_cl_freeze_three'
+
+training_history_file = 'los_cl_history'
 ```
 
 Setup parameters for models
@@ -130,26 +134,29 @@ combined_df = pd.merge(a_df, notes_df, on='HADM_ID', how='right')
 
 # passing format just to make sure conversion doesn't mess something up
 combined_df['charttime'] = pd.to_datetime(combined_df.CHARTTIME, format='%Y-%m-%d %H:%M:%S')
-combined_df = combined_df['HADM_ID', 'admittime', 'dischtime', 'los', 'charttime', 'TEXT']
-combined_df.rename(columns={"HADM_ID": "hadm_id", "TEXT": "text"})
-```
-
-```python
+combined_df['chartdate'] = pd.to_datetime(combined_df.CHARTDATE, format='%Y-%m-%d')
+combined_df['admitdate'] = combined_df.admittime.dt.date
+combined_df = combined_df[['HADM_ID', 'admittime', 'admitdate', 'dischtime', 'los', 'chartdate', 'charttime', 'TEXT']]
+combined_df.rename(columns={"HADM_ID": "hadm_id", "TEXT": "text"}, inplace=True)
 combined_df.shape
 ```
 
 ```python
 # these should all be zero
 print(combined_df[combined_df.los.isnull()].shape)
-print(combined_df[combined_df.HADM_ID.isnull()].shape)
-print(combined_df[combined_df.TEXT.isnull()].shape)
+print(combined_df[combined_df.hadm_id.isnull()].shape)
+print(combined_df[combined_df.text.isnull()].shape)
 ```
 
 ```python
 combined_df.head()
 ```
 
-### As an alternative - how about using notes from day 1 of stay to predict LOS?
+```python
+len(combined_df.hadm_id.unique())
+```
+
+### Use notes from day 1 of stay to predict LOS
 
 
     For each admission
@@ -160,15 +167,59 @@ combined_df.dtypes
 ```
 
 ```python
-combined_df[combined_df.HADM_ID == 100006]
+combined_df[combined_df.hadm_id == 100006].sort_values(['chartdate', 'charttime'])
 ```
 
 ```python
 h = 100006
 #for h in combined_df.HADM_ID.unique():
-combined_df[(combined_df.HADM_ID == h) & 
+combined_df[(combined_df.hadm_id == h) & 
             (combined_df.charttime >= combined_df.admittime) &
-            (combined_df.charttime < (combined_df.admittime + pd.Timedelta(hours=24)))]
+            (combined_df.charttime < (combined_df.admittime + pd.Timedelta(hours=24)))
+           ]
+```
+
+```python
+h = 100006
+#for h in combined_df.HADM_ID.unique():
+combined_df[(combined_df.hadm_id == h) & 
+            (((combined_df.charttime >= combined_df.admittime) &
+            (combined_df.charttime < (combined_df.admittime + pd.Timedelta(hours=24))))
+             |
+            (combined_df.chartdate == combined_df.admitdate))
+           ]
+```
+
+```python
+# Combine notes into one text field - need just one row for each patient
+f_df = combined_df[(combined_df.hadm_id == h) & 
+            (((combined_df.charttime >= combined_df.admittime) &
+            (combined_df.charttime < (combined_df.admittime + pd.Timedelta(hours=24))))
+             |
+            (combined_df.chartdate == combined_df.admitdate))
+           ]
+```
+
+```python
+fday = combined_df.groupby('hadm_id', as_index=False).apply(lambda g: g[
+    (g.charttime >= g.admittime) & (g.charttime < (g.admittime + pd.Timedelta(hours=24)))
+    |
+    (g.chartdate == g.admitdate)
+])
+```
+
+```python
+combined_fday = fday.groupby(['hadm_id', 'los'], as_index=False).agg({
+    'text': lambda x: "\n\n\n\n".join(x)
+})
+```
+
+```python
+combined_fday.head()
+```
+
+```python
+combined_fday.shape
 ```
 
 ### Histogram of number of notes by Hospital Admission - 10% random sample
@@ -256,7 +307,6 @@ else:
                .split_by_rand_pct(valid_pct=valid_pct, seed=seed)
                #We randomly split and keep 20% for validation, set see for repeatability
                .label_from_df(cols='los')
-               #building classifier to automatically determine DESCRIPTION
                .databunch(bs=bs))
     data_cl.save(filename)
 ```
