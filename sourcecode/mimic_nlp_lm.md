@@ -198,7 +198,7 @@ if os.path.isfile(tmpfile):
     data_lm = load_data(base_path, lm_file, bs=bs)
 else:
     print('creating new language model')
-    data_lm = (TextList.from_df(df, 'texts.csv', cols='TEXT')
+    data_lm = (TextList.from_df(df, base_path, cols='TEXT')
                #df has several columns; actual text is in column TEXT
                .split_by_rand_pct(valid_pct=valid_pct, seed=seed)
                #We randomly split and keep 10% for validation
@@ -400,7 +400,7 @@ def custom_learner_load(lf):
 # if want to start fresh from the initialized language model, set to False
 # also, make sure to remove any previously created saved states before changing
 # flag back to continue
-continue_flag = False
+continue_flag = True
 # Resume interrupted training - should be able to leave as True
 resume_flag = True
 ########################################################
@@ -516,6 +516,19 @@ for lr in [5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3]:
 ```
 <!-- #endregion -->
 
+Revaluate learning rate now that we've trained some
+
+```python
+learn = language_model_learner(data_lm, AWD_LSTM, drop_mult=0.3)
+learn.load(base_path/'mimic_lm_fine_tuned_10')
+print('loaded learner') # if don't print this then jupyter will display too much details about learner
+```
+
+```python
+learn.lr_find()
+learn.recorder.plot(skip_end=15)
+```
+
 ```python
 # test the language generation capabilities of this model (not the point, but is interesting)
 TEXT = "For confirmation, she underwent CTA of the lung which was negative for pulmonary embolism"
@@ -542,15 +555,16 @@ learn.summary()
 ```
 
 ```python
+learn.model
+```
+
+```python
 # see if learning rate has changed with training
+learn.unfreeze()
 learn.lr_find()
 learn.recorder.plot(skip_end=15)
 ```
 
 ```python
 learn.unfreeze()
-```
-
-```python
-
 ```
