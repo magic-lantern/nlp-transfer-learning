@@ -66,11 +66,20 @@ pct_data_sample = 0.1
 valid_pct = 0.2
 # for repeatability - different seed than used with language model
 seed = 1776
-# for language model building - not sure how this will translate to classifier
-# batch size of 128 GPU uses 14GB RAM
-# batch size of 96 GPU uses 9GB RAM
-# batch size of 48 GPU uses 5GB RAM
+# for classifier, on unfrozen/full network training
+# batch size of 128 GPU uses ?? GB RAM
+# batch size of 96 GPU uses 22 GB RAM
+# batch size of 48 GPU uses GB RAM
 bs=96
+```
+
+```python
+# if this doesn't free memory, can restart Python kernel.
+# if that still doesn't work, try OS items mentioned here: https://docs.fast.ai/dev/gpu.html
+def release_mem():
+    gc.collect()
+    torch.cuda.empty_cache()
+release_mem()
 ```
 
 ```python
@@ -236,19 +245,31 @@ s = combined_fday.los.value_counts()
 len(s[s == 1])
 ```
 
+```python
+# min
+print('Min LOS:', combined_fday.los.min())
+# max
+print('Max LOS:', combined_fday.los.max())
+# median
+print('Median LOS:', combined_fday.los.median())
+# mean
+print('Mean LOS:', combined_fday.los.mean())
+```
+
 ### Truncate LOS to max of 10
 
 ```python
-combined_fday[combined_fday.los > 9] = 10
+trunc_fday = combined_fday.copy()
+trunc_fday[trunc_fday.los > 9] = 10
 ```
 
 ```python
-s = combined_fday.los.value_counts()
+s = trunc_fday.los.value_counts()
 len(s[s == 1])
 ```
 
 ```python
-print(combined_fday.los.value_counts().head(15))
+print(trunc_fday.los.value_counts().head(15))
 ```
 
 ### Histogram of number of notes by Hospital Admission - 10% random sample
@@ -293,7 +314,12 @@ alt.Chart(los_v_num_notes.sample(frac=.08, random_state=seed)).mark_point().enco
 ### Continuing on with Deep Learning
 
 ```python
-df = combined_fday.sample(frac=pct_data_sample, random_state=seed)
+df = trunc_fday.sample(frac=pct_data_sample, random_state=seed)
+```
+
+```python
+df.los = df.los.astype(int)
+df.dtypes
 ```
 
 ```python
@@ -340,19 +366,106 @@ learn.lr_find()
 learn.recorder.plot()
 ```
 
-Change learning rate based on results from the above plot
+Change learning rate based on results from the above plot.
+
+Next several cells test various learning rates to find ideal learning rate
+
+<!-- #region -->
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 5e-1, moms=(0.8,0.7))
+```
+
+     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	4.708494 	1.835568 	0.382114 	0.351472 	03:06
+<!-- #endregion -->
+
+<!-- #region -->
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 3e-1, moms=(0.8,0.7))
+```
+
+     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	3.543531 	1.673805 	0.412827 	0.395507 	03:06
+<!-- #endregion -->
+
+<!-- #region -->
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+```
+
+     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	2.456509 	2.235319 	0.116531 	0.064832 	02:35
+<!-- #endregion -->
+
+<!-- #region -->
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 1e-5, moms=(0.8,0.7))
+```
+
+     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	2.471896 	2.554195 	0.084914 	0.067981 	03:05
+<!-- #endregion -->
+
+<!-- #region -->
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 1e-6, moms=(0.8,0.7))
+```
+
+     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	2.448194 	2.195116 	0.381210 	0.353474 	02:53
+<!-- #endregion -->
+
+### Train with selected learning rate
+
+Results from `learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))`
+
+    Training new initial learner
+
+    epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	2.280483 	1.603017 	0.424571 	0.400360 	02:58
 
 ```python
 if os.path.isfile(str(init_model_file) + '.pth'):
     learn.load(init_model_file)
+    learn.load_encoder(enc_file)
     print('loaded initial learner')
 else:
     print('Training new initial learner')
-    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
     print('Saving new learner')
     learn.save(init_model_file)
     print('Finished generating new learner')
 ```
+
+### Results from the freeze_two learner
+
+With `learn.fit_one_cycle(1, slice(1e-1/(2.6**4),1e-1), moms=(0.8,0.7))`
+
+    epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	2.211946 	2.101550 	0.435411 	0.365390 	02:40
+
+With `learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))`
+
+    epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	2.164035 	1.778871 	0.388437 	0.261296 	02:41
+        
+With `learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))`
+
+     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0 	2.129446 	1.534165 	0.460705 	0.426229 	03:06
 
 ```python
 if os.path.isfile(str(freeze_two) + '.pth'):
@@ -361,7 +474,10 @@ if os.path.isfile(str(freeze_two) + '.pth'):
 else:
     print('Training new freeze_two learner')
     learn.freeze_to(-2)
-    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
+    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
     print('Saving new freeze_two learner')
     learn.save(freeze_two)
     print('Finished generating new freeze_two learner')
@@ -374,7 +490,10 @@ if os.path.isfile(str(freeze_three) + '.pth'):
 else:
     print('Training new freeze_three learner')
     learn.freeze_to(-3)
-    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
+    learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
     print('Saving new freeze_three learner')
     learn.save(freeze_three)
     print('Finished generating new freeze_three learner')
@@ -400,26 +519,31 @@ if os.path.isfile(cycles_file):
     print('This model has been trained for', prev_cycles, 'epochs already')  
 else:
     prev_cycles = 0
+    print('This model NOT been trained yet') 
 ```
 
 ```python
 num_cycles = 7
 
-file = descr_ft_file + str(prev_cycles)
+file = ft_file + str(prev_cycles)
 learner_file = base_path/file
 callback_save_file = str(learner_file) + '_auto'
 
-learn.fit_one_cycle(num_cycles, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
+learn.fit_one_cycle(num_cycles, slice(1e-4/(2.6**4),1e-4), moms=(0.8,0.7),
                     callbacks=[
                         callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
                         # CSVLogger only logs when num_cycles are complete
                         callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                     ])
-file = descr_ft_file + str(prev_cycles + num_cycles)
+file = ft_file + str(prev_cycles + num_cycles)
 learner_file = base_path/file
 learn.save(learner_file)
 
 with open(cycles_file, 'wb') as f:
     pickle.dump(num_cycles + prev_cycles, f)
 release_mem()
+```
+
+```python
+
 ```

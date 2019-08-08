@@ -210,6 +210,9 @@ else:
     print('Finished generating new freeze_two learner')
 ```
 
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.343909	36.842651	0.940099	0.927041	38:25
+
 ```python
 if os.path.isfile(str(freeze_three) + '.pth'):
     learn.load(freeze_three)

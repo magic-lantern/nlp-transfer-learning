@@ -41,7 +41,7 @@ cycles_file = base_path/'descr_cl_num_iterations.pickle'
 enc_file = 'mimic_fine_tuned_enc'
 freeze_two = 'descr_cl_freeze_two'
 freeze_three = 'descr_cl_freeze_three'
-descr_ft_file = 'descr_cl_fine_tuned_'
+ft_file = 'descr_cl_fine_tuned_'
 
 training_history_file = 'descr_cl_history'
 ```
@@ -286,7 +286,7 @@ else:
 ```python
 num_cycles = 5
 
-file = descr_ft_file + str(prev_cycles)
+file = ft_file + str(prev_cycles)
 learner_file = base_path/file
 callback_save_file = str(learner_file) + '_auto'
 
@@ -296,7 +296,7 @@ learn.fit_one_cycle(num_cycles, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
                         # CSVLogger only logs when num_cycles are complete
                         callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                     ])
-file = descr_ft_file + str(prev_cycles + num_cycles)
+file = ft_file + str(prev_cycles + num_cycles)
 learner_file = base_path/file
 learn.save(learner_file)
 
@@ -308,7 +308,7 @@ release_mem()
 ```python
 num_cycles = 2
 
-file = descr_ft_file + str(prev_cycles)
+file = ft_file + str(prev_cycles)
 learner_file = base_path/file
 callback_save_file = str(learner_file) + '_auto'
 
@@ -318,7 +318,7 @@ learn.fit_one_cycle(num_cycles, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
                         # CSVLogger only logs when num_cycles are complete
                         callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                     ])
-file = descr_ft_file + str(prev_cycles + num_cycles)
+file = ft_file + str(prev_cycles + num_cycles)
 learner_file = base_path/file
 learn.save(learner_file)
 
