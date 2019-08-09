@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.1'
       jupytext_version: 1.2.1
   kernelspec:
-    display_name: Python (fastai)
+    display_name: Python 3
     language: python
-    name: fastai
+    name: python3
 ---
 
 # Based on our custom MIMIC language model, train a classifier
@@ -122,6 +122,8 @@ a_df = a_orig[['HADM_ID', 'ADMITTIME', 'DISCHTIME']].copy()
 a_df['admittime'] = pd.to_datetime(a_df.ADMITTIME, format='%Y-%m-%d %H:%M:%S')
 a_df['dischtime'] = pd.to_datetime(a_df.DISCHTIME, format='%Y-%m-%d %H:%M:%S')
 a_df['los'] = (a_df['dischtime'] - a_df['admittime']).astype('timedelta64[D]')
+# can't use a float in neural network
+a_df['los'] = a_df.los.astype(int)
 # there are 98 admissions where length of stay is negative. change to 0
 a_df.loc[a_df.los < 0, 'los'] = 0
 a_df.head()
@@ -138,6 +140,10 @@ alt.Chart(a_df.head(4000)).mark_bar().encode(
 ```
 
 ```python
+
+```
+
+```python
 # make sure we only keep rows with notes
 combined_df = pd.merge(a_df, notes_df, on='HADM_ID', how='right')
 
@@ -145,8 +151,8 @@ combined_df = pd.merge(a_df, notes_df, on='HADM_ID', how='right')
 combined_df['charttime'] = pd.to_datetime(combined_df.CHARTTIME, format='%Y-%m-%d %H:%M:%S')
 combined_df['chartdate'] = pd.to_datetime(combined_df.CHARTDATE, format='%Y-%m-%d')
 combined_df['admitdate'] = combined_df.admittime.dt.date
-combined_df = combined_df[['HADM_ID', 'admittime', 'admitdate', 'dischtime', 'los', 'chartdate', 'charttime', 'TEXT']]
-combined_df.rename(columns={"HADM_ID": "hadm_id", "TEXT": "text"}, inplace=True)
+combined_df = combined_df[['HADM_ID', 'ROW_ID', 'admittime', 'admitdate', 'dischtime', 'los', 'chartdate', 'charttime', 'TEXT']]
+combined_df.rename(columns={'HADM_ID': 'hadm_id', 'ROW_ID': 'row_id', 'TEXT': "text"}, inplace=True)
 combined_df.shape
 ```
 
@@ -176,10 +182,12 @@ combined_df.dtypes
 ```
 
 ```python
+# Just look at one admission to see if this is the right filter criteria
 combined_df[combined_df.hadm_id == 100006].sort_values(['chartdate', 'charttime'])
 ```
 
 ```python
+# Just look at one admission to see if this is the right filter criteria
 h = 100006
 #for h in combined_df.HADM_ID.unique():
 combined_df[(combined_df.hadm_id == h) & 
@@ -189,6 +197,7 @@ combined_df[(combined_df.hadm_id == h) &
 ```
 
 ```python
+# Just look at one admission to see if this is the right filter criteria
 h = 100006
 #for h in combined_df.HADM_ID.unique():
 combined_df[(combined_df.hadm_id == h) & 
@@ -199,22 +208,75 @@ combined_df[(combined_df.hadm_id == h) &
            ]
 ```
 
+### Histogram of note count each patient has
+
 ```python
-# Combine notes into one text field - need just one row for each patient
-f_df = combined_df[(combined_df.hadm_id == h) & 
-            (((combined_df.charttime >= combined_df.admittime) &
-            (combined_df.charttime < (combined_df.admittime + pd.Timedelta(hours=24))))
-             |
-            (combined_df.chartdate == combined_df.admitdate))
-           ]
+alt.Chart(
+    combined_df.groupby('hadm_id', as_index=False).text.count().sample(frac=.01, random_state=seed)
+).mark_bar().encode(
+    alt.X('text', bin=alt.BinParams(maxbins=50)),
+    y='count()',
+)
+```
+
+### Scatter plot of Number of Notes vs Length of Stay
+
+```python
+combined_df[['hadm_id', 'los']].drop_duplicates().shape
+combined_df.groupby('hadm_id', as_index=False).text.count().shape  #58,361
 ```
 
 ```python
+los_v_num_notes = pd.merge(combined_df[['hadm_id', 'los']].drop_duplicates(), 
+          combined_df.groupby('hadm_id', as_index=False).text.count(),
+          on='hadm_id')
+los_v_num_notes.shape
+```
+
+```python
+alt.Chart(los_v_num_notes.sample(frac=.08, random_state=seed)).mark_point().encode(
+    x=alt.X('los', axis=alt.Axis(title='Length of Stay (Days)')),
+    y=alt.Y('text', axis=alt.Axis(title='Number of Notes')))
+```
+
+### Build data set for LOS analysis
+
+First, find rows of data related to first day of stay
+
+Then, combine notes from first day into one text field
+
+```python
+# this is the slowest cell in pre-processing portion of the notebook 
 fday = combined_df.groupby('hadm_id', as_index=False).apply(lambda g: g[
     (g.charttime >= g.admittime) & (g.charttime < (g.admittime + pd.Timedelta(hours=24)))
     |
     (g.chartdate == g.admitdate)
 ])
+```
+
+```python
+fday.head()
+```
+
+```python
+tmp = fday[['hadm_id', 'row_id']].reset_index(drop=True)
+tmp['row_id'] = tmp['row_id'].astype(str)
+tmp.dtypes
+```
+
+```python
+tmp.head()
+```
+
+```python
+combined_notes_row_ids = tmp.groupby(['hadm_id'], as_index=False).agg({
+    'row_id': lambda x: ",".join(x)
+})
+combined_notes_row_ids.head()
+```
+
+```python
+fday.head()
 ```
 
 ```python
@@ -242,7 +304,7 @@ print(combined_fday.los.value_counts().tail(10))
 
 ```python
 s = combined_fday.los.value_counts()
-len(s[s == 1])
+print('Number of records where length of stay is unique to that person:', len(s[s == 1]))
 ```
 
 ```python
@@ -254,13 +316,15 @@ print('Max LOS:', combined_fday.los.max())
 print('Median LOS:', combined_fday.los.median())
 # mean
 print('Mean LOS:', combined_fday.los.mean())
+print('Mode LOS:', combined_fday.los.mode()[0]) # returns a series, just want the value
 ```
 
 ### Truncate LOS to max of 10
 
 ```python
 trunc_fday = combined_fday.copy()
-trunc_fday[trunc_fday.los > 9] = 10
+trunc_fday.loc[trunc_fday.los > 9, 'los'] = 10
+trunc_fday.head()
 ```
 
 ```python
@@ -272,54 +336,61 @@ len(s[s == 1])
 print(trunc_fday.los.value_counts().head(15))
 ```
 
-### Histogram of number of notes by Hospital Admission - 10% random sample
-
 ```python
-alt.Chart(
-    combined_df.groupby('hadm_id', as_index=False).text.count().sample(frac=.01, random_state=seed)
-).mark_bar().encode(
-    alt.X('text', bin=alt.BinParams(maxbins=50)),
-    y='count()',
-)
+rowid_sample = combined_notes_row_ids.sample(frac=pct_data_sample, random_state=seed)
 ```
-
-### Scatter plot of Number of Notes vs Length of Stay
-
-```python
-combined_df[['hadm_id', 'los']].drop_duplicates().shape            #42,195
-combined_df.groupby('hadm_id', as_index=False).text.count().shape  #42,195
-```
-
-```python
-los_v_num_notes = pd.merge(combined_df[['hadm_id', 'los']].drop_duplicates(), 
-          combined_df.groupby('hadm_id', as_index=False).text.count(),
-          on='hadm_id')
-los_v_num_notes.shape
-```
-
-```python
-alt.Chart(los_v_num_notes.sample(frac=.08, random_state=seed)).mark_point().encode(
-    x=alt.X('los', axis=alt.Axis(title='Length of Stay (Days)')),
-    y=alt.Y('text', axis=alt.Axis(title='Number of Notes')))
-```
-
-```python
-
-```
-
-```python
-
-```
-
-### Continuing on with Deep Learning
 
 ```python
 df = trunc_fday.sample(frac=pct_data_sample, random_state=seed)
+df.shape
 ```
 
 ```python
-df.los = df.los.astype(int)
-df.dtypes
+# should be 5535 - 100% overlap
+len(set(rowid_sample.hadm_id.unique()) & set(df.hadm_id.unique()))
+```
+
+```python
+len(df.hadm_id.unique())
+```
+
+```python
+print('--------- stats on 10% random sample ---------')
+print('Min LOS:', df.los.min())
+print('Max LOS:', df.los.max())
+print('Median LOS:', df.los.median())
+print('Mean LOS:', df.los.mean())
+print('Mode LOS:', df.los.mode()[0]) # returns a series, just want the value
+```
+
+```python
+#s.apply(pd.Series).stack().reset_index(drop=True)
+
+r = rowid_sample.groupby(['hadm_id'], as_index=False).agg({
+    'row_id': lambda x: x.str.split(',')
+})
+row_ids = r.row_id.apply(pd.Series).stack().reset_index(drop=True)
+```
+
+```python
+print(row_ids.shape)         # 33,914
+print(len(row_ids.unique())) # 33,914
+```
+
+```python
+# compare overlap between these notes and language model notes set
+lm_df = orig_df.sample(frac=pct_data_sample, random_state=42)
+print('rows in dataframe for NN:', len(row_ids.unique()))
+print('rows in language model:', len(lm_df.ROW_ID.unique()))
+print('row_ids in both:', len(set(row_ids.unique()) & set(lm_df.ROW_ID.unique())))
+```
+
+## Now for some Deep Learning
+
+```python
+# What if LOS was a string? Would accuracy, memory, or training time change?
+#df.los = df.los.astype(int)
+#df.dtypes
 ```
 
 ```python
@@ -359,6 +430,8 @@ learn.load_encoder(enc_file)
 ```
 
 ```python
+# with P100/P40 this takes maybe 5 minutes
+# with 2017 macbook pro, intel core i7 3.1Ghz, this takes about 160 minutes
 learn.lr_find()
 ```
 
