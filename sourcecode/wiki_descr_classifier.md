@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.1'
       jupytext_version: 1.2.1
   kernelspec:
-    display_name: Python (fastai)
+    display_name: Python 3
     language: python
-    name: fastai
+    name: python3
 ---
 
 # Based on general purpose language model, train a 'DESCRIPTION' classifier
@@ -115,6 +115,8 @@ In this case, I just want to test how the classifier would work without fine-tun
 %%time
 
 tmpfile = base_path/lm_file
+
+lm_df = orig_df.sample(frac=pct_data_sample, random_state=lm_seed)
 
 if os.path.isfile(tmpfile):
     print('loading existing language model')

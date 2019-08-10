@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.1'
       jupytext_version: 1.2.1
   kernelspec:
-    display_name: Python (fastai)
+    display_name: Python 3
     language: python
-    name: fastai
+    name: python3
 ---
 
 ## Using FAST.AI for Medical NLP - Step 1 Build a langauge model
@@ -73,6 +73,8 @@ init_model_file = base_path/'mimic_fit_head'
 cycles_file = base_path/'num_iterations.pickle'
 lm_base_file = 'mimic_lm_fine_tuned_'
 enc_file = 'mimic_fine_tuned_enc'
+
+training_history_file = 'mimic_lm_fine_tune_history'
 ```
 
 ```python
@@ -284,7 +286,10 @@ if os.path.isfile(str(init_model_file) + '.pth'):
     learn.load(init_model_file)
     print('loaded learner')
 else:
-    learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7))
+    learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
     learn.save(init_model_file)
     print('generated new learner')
 ```
@@ -467,7 +472,7 @@ learn.fit_one_cycle(num_cycles, 5e-3, moms=(0.8,0.7),
                     callbacks=[
                         callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
                         # CSVLogger only logs when num_cycles are complete
-                        callbacks.CSVLogger(learn, filename='mimic_lm_fine_tune_history', append=True),
+                        callbacks.CSVLogger(learn, filename=training_history_file, append=True),
                         callbacks.EarlyStoppingCallback(learn, monitor='accuracy', min_delta=0.0025, patience=5)
                     ],
                     start_epoch=start_epoch)
