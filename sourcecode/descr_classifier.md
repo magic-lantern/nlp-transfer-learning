@@ -5,7 +5,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.1'
-      jupytext_version: 1.1.7
+      jupytext_version: 1.2.1
   kernelspec:
     display_name: Python 3
     language: python
@@ -39,6 +39,10 @@ init_model_file = base_path/'cl_head'
 cycles_file = base_path/'cl_num_iterations.pickle'
 enc_file = 'cl_enc'
 descr_ft_file = 'cl_fine_tuned_'
+
+training_history_file = 'no_ft_cl_history'
+transformer_training_history_file = 'no_ft_cl_tfr_history'
+transformerxl_training_history_file = 'no_ft_cl_trfxl_history'
 ```
 
 Setup parameters for models
@@ -161,7 +165,10 @@ Unfrozen run with `learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))` and `pretrained
         0 	2.530828 	2.415014 	0.545564 	56:26
 ```python
 learn.unfreeze()
-learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
 release_mem()
 ```
 
@@ -189,7 +196,10 @@ release_mem()
 
 ```python
 learn.unfreeze()
-learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=transformer_training_history_file, append=True)
+                       ])
 release_mem()
 ```
 
@@ -210,7 +220,10 @@ release_mem()
 
 ```python
 learn.unfreeze()
-learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=transformerxl_training_history_file, append=True)
+                       ])
 release_mem()
 ```
 

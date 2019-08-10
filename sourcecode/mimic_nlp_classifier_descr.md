@@ -200,7 +200,10 @@ if os.path.isfile(str(init_model_file) + '.pth'):
     print('loaded initial learner')
 else:
     print('Training new initial learner')
-    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
     print('Saving new learner')
     learn.save(init_model_file)
     print('Finished generating new learner')
@@ -225,7 +228,10 @@ if os.path.isfile(str(freeze_two) + '.pth'):
 else:
     print('Training new freeze_two learner')
     learn.freeze_to(-2)
-    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
+    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
     print('Saving new freeze_two learner')
     learn.save(freeze_two)
     print('Finished generating new freeze_two learner')
@@ -248,7 +254,10 @@ if os.path.isfile(str(freeze_three) + '.pth'):
 else:
     print('Training new freeze_three learner')
     learn.freeze_to(-3)
-    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
+    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
     print('Saving new freeze_three learner')
     learn.save(freeze_three)
     print('Finished generating new freeze_three learner')
@@ -284,7 +293,7 @@ else:
         4 	0.248916 	0.201936 	0.957111 	0.948590 	39:39
 
 ```python
-num_cycles = 5
+num_cycles = 7
 
 file = ft_file + str(prev_cycles)
 learner_file = base_path/file
