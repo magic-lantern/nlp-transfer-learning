@@ -1,4 +1,4 @@
-name: fastaitest
+name: nlp-transfer-learning
 channels:
   - pytorch
   - fastai
