@@ -389,8 +389,10 @@ print('row_ids in both:', len(set(row_ids.unique()) & set(lm_df.ROW_ID.unique())
 
 ```python
 # What if LOS was a string? Would accuracy, memory, or training time change?
-#df.los = df.los.astype(int)
-#df.dtypes
+# after some testing - no
+# df_test = df.copy()
+# df_test.los = df_test.los.apply(str)
+# df_test.dtypes
 ```
 
 ```python
@@ -451,7 +453,7 @@ learn.fit_one_cycle(1, 5e-1, moms=(0.8,0.7))
 ```
 
      epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	4.708494 	1.835568 	0.382114 	0.351472 	03:06
+        0	4.441254	2.457666	0.301716	0.174702	03:54
 <!-- #endregion -->
 
 <!-- #region -->
@@ -462,7 +464,7 @@ learn.fit_one_cycle(1, 3e-1, moms=(0.8,0.7))
 ```
 
      epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	3.543531 	1.673805 	0.412827 	0.395507 	03:06
+        0	2.329859	2.146445	0.319783	0.154967	03:44
 <!-- #endregion -->
 
 <!-- #region -->
@@ -473,29 +475,29 @@ learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
 ```
 
      epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	2.456509 	2.235319 	0.116531 	0.064832 	02:35
+        0	2.192971	2.083736	0.345077	0.211943	03:17
 <!-- #endregion -->
 
 <!-- #region -->
 ```python
 learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
 learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 1e-5, moms=(0.8,0.7))
+learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7))
 ```
 
      epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	2.471896 	2.554195 	0.084914 	0.067981 	03:05
+        0	2.183936	2.054368	0.359530	0.233471	03:56
 <!-- #endregion -->
 
 <!-- #region -->
 ```python
 learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
 learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 1e-6, moms=(0.8,0.7))
+learn.fit_one_cycle(1, 1e-2, moms=(0.8,0.7))
 ```
 
      epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	2.448194 	2.195116 	0.381210 	0.353474 	02:53
+        0	2.199809	2.068873	0.343270	0.217603	03:38
 <!-- #endregion -->
 
 ### Train with selected learning rate
@@ -510,11 +512,10 @@ Results from `learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))`
 ```python
 if os.path.isfile(str(init_model_file) + '.pth'):
     learn.load(init_model_file)
-    learn.load_encoder(enc_file)
     print('loaded initial learner')
 else:
     print('Training new initial learner')
-    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+    learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -523,23 +524,31 @@ else:
     print('Finished generating new learner')
 ```
 
+<!-- #region -->
 ### Results from the freeze_two learner
 
-With `learn.fit_one_cycle(1, slice(1e-1/(2.6**4),1e-1), moms=(0.8,0.7))`
-
-    epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	2.211946 	2.101550 	0.435411 	0.365390 	02:40
 
 With `learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))`
 
     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	2.164035 	1.778871 	0.388437 	0.261296 	02:41
+        0	2.151176	2.060364	0.368564	0.266202	04:06
         
 With `learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))`
 
      epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	2.129446 	1.534165 	0.460705 	0.426229 	03:06
+        0	2.056317	2.013587	0.368564	0.245495	04:00
+        
+With `learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7))`
 
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.335549	2.178197	0.236676	0.157695	04:05
+        
+With `learn.fit_one_cycle(1, slice(1e-3/(2.6**4),1e-3), moms=(0.8,0.7))`
+
+     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
+        0	2.529039	2.485589	0.075881	0.070762	03:26
+
+<!-- #endregion -->
 ```python
 if os.path.isfile(str(freeze_two) + '.pth'):
     learn.load(freeze_two)
@@ -547,13 +556,31 @@ if os.path.isfile(str(freeze_two) + '.pth'):
 else:
     print('Training new freeze_two learner')
     learn.freeze_to(-2)
-    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
     print('Saving new freeze_two learner')
     learn.save(freeze_two)
     print('Finished generating new freeze_two learner')
+```
+
+```python
+learn.load(freeze_two)
+learn.freeze_to(-3)
+learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
+```
+
+```python
+learn.load(freeze_two)
+learn.freeze_to(-3)
+learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
+```
+
+```python
+learn.load(freeze_two)
+learn.freeze_to(-3)
+learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7))
 ```
 
 ```python

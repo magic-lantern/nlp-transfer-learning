@@ -305,6 +305,13 @@ learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
     epoch	train_loss	valid_loss	accuracy	f_beta	time
         0	0.326875	0.234437	0.952749	0.941585	28:56
         
+Went with 1e-2 and got this result next time:
+
+Training new freeze_three learner
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.330733	0.249801	0.950749	0.938834	38:07
+        
 ```python
 learn.load(freeze_two)
 learn.freeze_to(-3)
@@ -359,6 +366,15 @@ else:
         2 	0.241548 	0.217816 	0.952870 	0.942942 	42:32
         3 	0.262864 	0.202371 	0.957014 	0.947445 	35:17
         4 	0.248916 	0.201936 	0.957111 	0.948590 	39:39
+        
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.329066	0.251686	0.951111	0.940551	43:34
+        1	0.350617	0.238229	0.951376	0.940809	43:02
+        2	0.328881	0.232468	0.950966	0.940160	39:15
+        3	0.291664	0.220794	0.954918	0.944194	41:08
+        4	0.271011	0.213012	0.955568	0.944835	48:17
+        5	0.231853	0.207560	0.956412	0.945960	42:27
+        6	0.211285	0.205632	0.957159	0.947107	42:27
 
 ```python
 num_cycles = 7
