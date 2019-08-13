@@ -30,11 +30,16 @@
 
 \maketitle
 
+% not enough space to fit abstract, but keeping it in for version control purposes
+% \noindent{\bf Abstract}
+
+% \textit{The use of language models in deep learning natural language processing has shown recent success in many general English language benchmarks. Through unsupervised creation of language models, performance on wide variety of problems is improved as well as reducing training time. In this work we explore the effectiveness of the fine-tuning language models for transfer learning applied to the medical domain. Our language modeling and retrospective classifications tasks were carried out using data from MIMIC.}
+
 \section*{Introduction}
 
 In the natural language processing (NLP) machine learning domain, great success has been found recently through the creation of language models built in an unsupervised fashion. Derived from successes seen with transfer learning in domains such as imaging, one early publication \cite{howard_universal_2018} showed success with NLP transfer learning. Building upon this work primarily through the use of massive data sets and compute power \cite{radford_language_2019} has resulted in new records on various benchmark tests for state of the art NLP.
 
-To date, the successes seen with transfer learning in NLP have focused on general English non-medical text. The contribution of this work is to demonstrate the effectiveness of the transfer learn techniques applied to the medical domain. NLP transfer learning is similar to transfer learning in computer vision where a general computer vision model can recognize common image features such as lines, circles, edges, and composite patterns. In NLP transfer learning, a language model is trained to predict and recognize language features in terms of probabilities at both the word and sentence level. Language models are trained in an unsupervised fashion by having the model predict the next word in a sentence of text given previous words. Source code for this work is publicly available at \footnote{\url{https://github.com/magic-lantern/nlp-transfer-learning}}.
+To date, the successes seen with transfer learning in NLP have focused on general English non-medical text. The contribution of this work is to demonstrate the effectiveness of the transfer learning techniques applied to the medical domain. NLP transfer learning is similar to transfer learning in computer vision where a general computer vision model can recognize common image features such as lines, circles, edges, and composite patterns. In NLP transfer learning, a language model is trained to predict and recognize language features in terms of probabilities at both the word and sentence level. Language models are trained in an unsupervised fashion by having the model predict the next word in a sentence of text given previous words. Source code for this work is publicly available at \footnote{\url{https://github.com/magic-lantern/nlp-transfer-learning}}.
 
 \section*{Methods}
 
@@ -46,7 +51,7 @@ Once the language model was fine-tuned against a random sample of MIMIC clinical
 
 \section*{Results}
 
-For the language model, we used 60,000 as the vocabulary size. There is a 24.4\% overlap in tokens between WT-103 language model and MIMIC language model; e.g. words such as 'circumference' and 'purple' exist in both. Words unique to the MIMIC language model include examples such as 'transgastric', 'dysregulation', and 'bronchiectasis'. With 1 frozen (adjusting weights of last layer only) and 9 unfrozen (adjusting weights of all layers) epochs, the model goes from 55.9\% accuracy to 67.7\% accuracy at predicting the next token in a clinical note. The resulting model is 550MB in size.
+For the language model, we selected a random 10\% sample of all notes and used 60,000 as the vocabulary size. There is a 24.4\% overlap in tokens between WT-103 language model and MIMIC language model; e.g. words such as 'circumference' and 'purple' exist in both. Words unique to the MIMIC language model include examples such as 'transgastric', 'dysregulation', and 'bronchiectasis'. With 1 frozen (adjusting weights of last layer only) and 9 unfrozen (adjusting weights of all layers) epochs, the model goes from 55.9\% accuracy to 67.7\% accuracy at predicting the next token in a clinical note. The resulting model is 550MB in size.
 
 For the description classifier, we selected 10\% of the clinical notes to train and test our classifier. There was a 9.91\% overlap between notes used for training and validating the language model and training and validating the description classifier. There are 1,708 distinct description values present, with most being labeled generically as 'Report' (54.5\%), and a long tail of decreasing frequency including 695 descriptions that are only used once. When starting with a MIMIC fine-tuned language model accuracy goes from 90.7\% to 95.7\%, and weighted F1 from 0.89 to 0.95, with 10 epochs of training. By comparison, starting with a non-MIMIC-fine-tuned language model, accuracy starts at 86.3\% and improves to to XX.X\%, and weighted F1 from 0.84 to 0.XX with 10 epochs of training.
 
