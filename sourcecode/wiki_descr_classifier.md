@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.1'
       jupytext_version: 1.2.1
   kernelspec:
-    display_name: Python 3
+    display_name: Python (fastai)
     language: python
-    name: python3
+    name: fastai
 ---
 
 # Based on general purpose language model, train a 'DESCRIPTION' classifier
@@ -116,14 +116,13 @@ In this case, I just want to test how the classifier would work without fine-tun
 
 tmpfile = base_path/lm_file
 
-lm_df = orig_df.sample(frac=pct_data_sample, random_state=lm_seed)
-
 if os.path.isfile(tmpfile):
     print('loading existing language model')
     lm = load_data(base_path, lm_file, bs=bs)
 else:
     print('creating new language model')
-    lm = (TextList.from_df(df, base_path, cols='TEXT')
+    lm_df = orig_df.sample(frac=pct_data_sample, random_state=lm_seed)
+    lm = (TextList.from_df(lm_df, base_path, cols='TEXT')
                #df has several columns; actual text is in column TEXT
                .split_by_rand_pct(valid_pct=valid_pct, seed=lm_seed)
                #We randomly split and keep 10% for validation
@@ -131,6 +130,7 @@ else:
                #We want to do a language model so we label accordingly
                .databunch(bs=bs))
     lm.save(tmpfile)
+    print('completed creating new language model')
 ```
 
 ```python
@@ -148,6 +148,7 @@ if os.path.isfile(filename):
     data_cl = load_data(base_path, class_file, bs=bs)
     print('loaded existing data bunch')
 else:
+    print('creating new data bunch')
     data_cl = (TextList.from_df(df, base_path, cols='TEXT', vocab=lm.vocab)
                #df has several columns; actual text is in column TEXT
                .split_by_rand_pct(valid_pct=valid_pct, seed=seed)
@@ -173,16 +174,44 @@ learn.recorder.plot()
 ```
 
 Change learning rate based on results from the above plot
+<!-- #region -->
+### Testing various learning rates
 
-     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	0.871917 	0.646747 	0.862778 	0.839451 	18:41
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 5e-1, moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	1.191307	2.383918	0.821936	0.787612	19:43
+
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.825669	0.656172	0.852610	0.823339	19:37
+        
+ ```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.817185	0.601400	0.870826	0.846927	23:23
+<!-- #endregion -->
+
 ```python
 if os.path.isfile(str(init_model_file) + '.pth'):
     learn.load(init_model_file)
     print('loaded initial learner')
 else:
     print('Training new initial learner')
-    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+    learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -203,7 +232,7 @@ if os.path.isfile(str(freeze_two) + '.pth'):
 else:
     print('Training new freeze_two learner')
     learn.freeze_to(-2)
-    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),5e-2), moms=(0.8,0.7),
                         callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])

@@ -319,13 +319,12 @@ print('row_ids in both:', len(set(row_ids.unique()) & set(lm_df.ROW_ID.unique())
 ```python
 tmpfile = base_path/lm_file
 
-lm_df = orig_df.sample(frac=pct_data_sample, random_state=lm_seed)
-
 if os.path.isfile(tmpfile):
     print('loading existing language model')
     lm = load_data(base_path, lm_file, bs=bs)
 else:
     print('creating new language model')
+    lm_df = orig_df.sample(frac=pct_data_sample, random_state=lm_seed)
     lm = (TextList.from_df(lm_df, base_path, cols='TEXT')
                #df has several columns; actual text is in column TEXT
                .split_by_rand_pct(valid_pct=valid_pct, seed=lm_seed)
@@ -334,6 +333,7 @@ else:
                #We want to do a language model so we label accordingly
                .databunch(bs=bs))
     lm.save(tmpfile)
+    print('completed creating new language model')
 ```
 
 ```python
@@ -349,7 +349,7 @@ if os.path.isfile(filename):
     data_cl = load_data(base_path, class_file, bs=bs)
     print('loaded existing data bunch')
 else:
-    # do I need a vocab here? test with and without...
+    print('creating new data bunch')
     data_cl = (TextList.from_df(df, base_path, cols='text', vocab=lm.vocab)
                #df has several columns; actual text is in column TEXT
                .split_by_rand_pct(valid_pct=valid_pct, seed=seed)

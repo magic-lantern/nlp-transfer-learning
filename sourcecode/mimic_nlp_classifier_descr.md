@@ -179,19 +179,44 @@ By comparison, a smaller learning rate takes longer to get to similar accuracy (
         0 	0.451051 	0.413487 	0.909619 	25:38
 
 <!-- #region -->
-Evaluate some different learning rates:
+### Evaluate some different learning rates:
 
 ```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5)
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
 learn.load_encoder(enc_file)
-learn.fit_one_cycle(3, 1e-1, moms=(0.8,0.7))
+learn.fit_one_cycle(1, 5e-1, moms=(0.8,0.7))
 ```
 
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.670215	0.619886	0.888246	0.868050	19:47
+
 ```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5)
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
 learn.load_encoder(enc_file)
-learn.fit_one_cycle(3, 5e-2, moms=(0.8,0.7))
+learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
 ```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.496811	0.436123	0.902583	0.884507	19:41
+
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.505160	0.374866	0.911137	0.894657	26:27
+        
+        
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 1e-3, moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.638841	0.539886	0.887017	0.861946	21:33
 <!-- #endregion -->
 
 ```python
@@ -200,7 +225,7 @@ if os.path.isfile(str(init_model_file) + '.pth'):
     print('loaded initial learner')
 else:
     print('Training new initial learner')
-    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+    learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -220,6 +245,18 @@ learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
         0 	0.344032 	0.281245 	0.943689 	0.931991 	20:37
 <!-- #endregion -->
+
+```python
+learn.load(init_model_file)
+learn.freeze_to(-2)
+learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7)
+```
+
+```python
+learn.load(init_model_file)
+learn.freeze_to(-2)
+learn.fit_one_cycle(1, slice(1e-3/(2.6**4),1e-3), moms=(0.8,0.7)
+```
 
 ```python
 if os.path.isfile(str(freeze_two) + '.pth'):
@@ -294,28 +331,6 @@ else:
 
 ```python
 num_cycles = 7
-
-file = ft_file + str(prev_cycles)
-learner_file = base_path/file
-callback_save_file = str(learner_file) + '_auto'
-
-learn.fit_one_cycle(num_cycles, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
-                    callbacks=[
-                        callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
-                        # CSVLogger only logs when num_cycles are complete
-                        callbacks.CSVLogger(learn, filename=training_history_file, append=True)
-                    ])
-file = ft_file + str(prev_cycles + num_cycles)
-learner_file = base_path/file
-learn.save(learner_file)
-
-with open(cycles_file, 'wb') as f:
-    pickle.dump(num_cycles + prev_cycles, f)
-release_mem()
-```
-
-```python
-num_cycles = 2
 
 file = ft_file + str(prev_cycles)
 learner_file = base_path/file
