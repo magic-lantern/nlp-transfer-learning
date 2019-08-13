@@ -174,37 +174,6 @@ learn.recorder.plot()
 ```
 
 Change learning rate based on results from the above plot
-<!-- #region -->
-### Testing various learning rates
-
-```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 5e-1, moms=(0.8,0.7))
-```
-
-    epoch	train_loss	valid_loss	accuracy	f_beta	time
-        0	1.191307	2.383918	0.821936	0.787612	19:43
-
-```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
-```
-
-    epoch	train_loss	valid_loss	accuracy	f_beta	time
-        0	0.825669	0.656172	0.852610	0.823339	19:37
-        
- ```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7))
-```
-
-    epoch	train_loss	valid_loss	accuracy	f_beta	time
-        0	0.817185	0.601400	0.870826	0.846927	23:23
-<!-- #endregion -->
-
 ```python
 if os.path.isfile(str(init_model_file) + '.pth'):
     learn.load(init_model_file)
@@ -232,7 +201,7 @@ if os.path.isfile(str(freeze_two) + '.pth'):
 else:
     print('Training new freeze_two learner')
     learn.freeze_to(-2)
-    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),5e-2), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
                         callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])

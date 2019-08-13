@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.1'
       jupytext_version: 1.2.1
   kernelspec:
-    display_name: Python 3
+    display_name: Python (fastai)
     language: python
-    name: python3
+    name: fastai
 ---
 
 # Train a 'DESCRIPTION' classifier
@@ -126,11 +126,10 @@ else:
 ```
 
 ```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, pretrained=False)
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, pretrained=False, metrics=[accuracy, FBeta(average='weighted', beta=1)])
 ```
 
 ```python
-learn.unfreeze()
 learn.lr_find()
 release_mem()
 ```
@@ -163,6 +162,21 @@ Unfrozen run with `learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))` and `pretrained
 
     epoch 	train_loss 	valid_loss 	accuracy 	time
         0 	2.530828 	2.415014 	0.545564 	56:26
+```python
+if os.path.isfile(str(init_model_file) + '.pth'):
+    learn.load(init_model_file)
+    print('loaded initial learner')
+else:
+    print('Training new initial learner')
+    learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
+    print('Saving new learner')
+    learn.save(init_model_file)
+    print('Finished generating new learner')
+```
+
 ```python
 learn.unfreeze()
 learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),

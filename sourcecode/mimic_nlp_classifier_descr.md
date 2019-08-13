@@ -234,29 +234,33 @@ else:
     print('Finished generating new learner')
 ```
 
-Now need to fine tune
-
 <!-- #region -->
+Now need to fine tune - try a few different learning rates for comparison
+
 ```python
 learn.freeze_to(-2)
 learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
 ```
 
-    epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	0.344032 	0.281245 	0.943689 	0.931991 	20:37
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.328557	0.256304	0.949039	0.936714	25:59
+        
+```python
+learn.freeze_to(-2)
+learn.fit_one_cycle(1, slice(1e-3/(2.6**4),1e-3), moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.394117	0.348810	0.922245	0.904277	24:41
+
+Went with 5e-2
+
+    Training new freeze_two learner
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.349307	0.255599	0.947545	0.935599	22:15
+    Saving new freeze_two learner
+    Finished generating new freeze_two learner
 <!-- #endregion -->
-
-```python
-learn.load(init_model_file)
-learn.freeze_to(-2)
-learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7)
-```
-
-```python
-learn.load(init_model_file)
-learn.freeze_to(-2)
-learn.fit_one_cycle(1, slice(1e-3/(2.6**4),1e-3), moms=(0.8,0.7)
-```
 
 ```python
 if os.path.isfile(str(freeze_two) + '.pth'):
@@ -275,13 +279,32 @@ else:
 ```
 
 <!-- #region -->
+Now compare a few different learning rates here as well
+
+```python
+learn.freeze_to(-3)
+learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	1.433470	1.392961	0.752084	0.681817	27:45
+
 ```python
 learn.freeze_to(-3)
 learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
 ```
 
-    epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0 	0.323191 	0.250100 	0.948268 	0.937939 	31:50
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.326875	0.234437	0.952749	0.941585	28:56
+        
+```python
+learn.load(freeze_two)
+learn.freeze_to(-3)
+learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	0.346814	0.245426	0.952026	0.940811	31:45
 <!-- #endregion -->
 
 ```python
