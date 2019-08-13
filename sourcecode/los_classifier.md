@@ -41,8 +41,8 @@ notes_pickle_file = base_path/'noteevents.pickle'
 init_model_file = base_path/'los_no_ft_head'
 cycles_file = base_path/'los_no_ft_num_iterations.pickle'
 ft_file = 'los_no_ft_fine_tuned_'
-freeze_two = 'los_no_ft_freeze_two'
-freeze_three = 'los_no_ft_freeze_three'
+freeze_two = base_path/'los_no_ft_freeze_two'
+freeze_three = base_path/'los_no_ft_freeze_three'
 
 training_history_file = 'los_no_ft_history'
 ```

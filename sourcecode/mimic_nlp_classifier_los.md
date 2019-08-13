@@ -51,8 +51,8 @@ init_model_file = base_path/'los_cl_head'
 cycles_file = base_path/'los_cl_num_iterations.pickle'
 enc_file = 'mimic_fine_tuned_enc'
 ft_file = 'los_cl_fine_tuned_'
-freeze_two = 'los_cl_freeze_two'
-freeze_three = 'los_cl_freeze_three'
+freeze_two = base_path/'los_cl_freeze_two'
+freeze_three = base_path/'los_cl_freeze_three'
 
 training_history_file = 'los_cl_history'
 ```

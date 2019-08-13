@@ -39,8 +39,8 @@ lm_file = 'cl_lm.pickle' # actual file is at base_path/lm_file but due to fastai
 init_model_file = base_path/'wiki_cl_head'
 cycles_file = base_path/'wiki_cl_num_iterations.pickle'
 enc_file = 'wiki_cl_enc'
-freeze_two = 'wiki_cl_freeze_two'
-freeze_three = 'wiki_cl_freeze_three'
+freeze_two = base_path/'wiki_cl_freeze_two'
+freeze_three = base_path/'wiki_cl_freeze_three'
 descr_ft_file = 'wiki_cl_fine_tuned_'
 
 training_history_file = 'wiki_cl_history'

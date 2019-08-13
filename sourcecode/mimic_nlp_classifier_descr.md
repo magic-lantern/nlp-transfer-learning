@@ -39,8 +39,8 @@ lm_file = 'mimic_lm.pickle' # actual file is at base_path/lm_file but due to fas
 init_model_file = base_path/'descr_cl_head'
 cycles_file = base_path/'descr_cl_num_iterations.pickle'
 enc_file = 'mimic_fine_tuned_enc'
-freeze_two = 'descr_cl_freeze_two'
-freeze_three = 'descr_cl_freeze_three'
+freeze_two = base_path/'descr_cl_freeze_two'
+freeze_three = base_path/'descr_cl_freeze_three'
 ft_file = 'descr_cl_fine_tuned_'
 
 training_history_file = 'descr_cl_history'
@@ -263,7 +263,15 @@ Went with 5e-2
 <!-- #endregion -->
 
 ```python
-if os.path.isfile(str(freeze_two) + '.pth'):
+os.path.isfile(str(freeze_two) + '.pth')
+#str(freeze_two) + '.pth'
+#os.path.isfile(str(freeze_three) + '.pth')
+#    learn.load(freeze_two)
+#    print('loaded freeze_two learner')
+```
+
+```python
+if os.path.isfile(str(base_path / freeze_two) + '.pth'):
     learn.load(freeze_two)
     print('loaded freeze_two learner')
 else:

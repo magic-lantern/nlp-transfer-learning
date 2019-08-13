@@ -43,8 +43,8 @@ init_model_file = base_path/'wiki_los_cl_head'
 cycles_file = base_path/'wiki_los_cl_num_iterations.pickle'
 enc_file = 'wiki_cl_enc'
 ft_file = 'wiki_los_cl_fine_tuned_'
-freeze_two = 'wiki_los_cl_freeze_two'
-freeze_three = 'wiki_los_cl_freeze_three'
+freeze_two = base_path/'wiki_los_cl_freeze_two'
+freeze_three = base_path/'wiki_los_cl_freeze_three'
 
 training_history_file = 'wiki_los_cl_history'
 ```
