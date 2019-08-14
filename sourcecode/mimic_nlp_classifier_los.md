@@ -565,23 +565,38 @@ else:
     print('Finished generating new freeze_two learner')
 ```
 
+<!-- #region -->
 ```python
 learn.load(freeze_two)
 learn.freeze_to(-3)
 learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
 ```
 
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.010714	2.073426	0.373984	0.265069	04:21
+<!-- #endregion -->
+
+<!-- #region -->
 ```python
 learn.load(freeze_two)
 learn.freeze_to(-3)
 learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
 ```
 
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	1.941861	1.975329	0.369467	0.269504	03:50
+<!-- #endregion -->
+
+<!-- #region -->
 ```python
 learn.load(freeze_two)
 learn.freeze_to(-3)
 learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7))
 ```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	1.958077	1.971695	0.367660	0.270906	03:51
+<!-- #endregion -->
 
 ```python
 if os.path.isfile(str(freeze_three) + '.pth'):
@@ -590,7 +605,7 @@ if os.path.isfile(str(freeze_three) + '.pth'):
 else:
     print('Training new freeze_three learner')
     learn.freeze_to(-3)
-    learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -612,6 +627,70 @@ learn.recorder.plot()
 release_mem()
 ```
 
+<!-- #region -->
+```python
+learn.load(freeze_three)
+learn.unfreeze()
+learn.fit_one_cycle(1, slice(1e-4/(2.6**4),1e-4), moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.070477	3.871025	0.356820	0.241513	04:13
+<!-- #endregion -->
+
+<!-- #region -->
+```python
+learn.load(freeze_three)
+learn.unfreeze()
+learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.058974	2.119161	0.349593	0.247054	03:55
+<!-- #endregion -->
+
+<!-- #region -->
+```python
+learn.load(freeze_three)
+learn.unfreeze()
+learn.fit_one_cycle(1, slice(1e-3/(2.6**4),1e-3), moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.070432	3.127100	0.354110	0.241749	04:20
+<!-- #endregion -->
+
+<!-- #region -->
+```python
+learn.load(freeze_three)
+learn.unfreeze()
+learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.045097	2.424613	0.353207	0.249828	04:04
+<!-- #endregion -->
+
+<!-- #region -->
+```python
+learn.load(freeze_three)
+learn.unfreeze()
+learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.039398	2.031859	0.357724	0.264459	04:29
+<!-- #endregion -->
+
+```python
+learn = None
+release_mem()
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.load(freeze_three)
+learn.unfreeze()
+```
+
 ```python
 if os.path.isfile(cycles_file):
     with open(cycles_file, 'rb') as f:
@@ -623,13 +702,45 @@ else:
 ```
 
 ```python
-num_cycles = 7
+num_cycles = 3
 
 file = ft_file + str(prev_cycles)
 learner_file = base_path/file
 callback_save_file = str(learner_file) + '_auto'
 
-learn.fit_one_cycle(num_cycles, slice(1e-4/(2.6**4),1e-4), moms=(0.8,0.7),
+learn.fit_one_cycle(num_cycles, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+                    callbacks=[
+                        callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
+                        # CSVLogger only logs when num_cycles are complete
+                        callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                    ])
+file = ft_file + str(prev_cycles + num_cycles)
+learner_file = base_path/file
+learn.save(learner_file)
+
+with open(cycles_file, 'wb') as f:
+    pickle.dump(num_cycles + prev_cycles, f)
+release_mem()
+```
+
+```python
+if os.path.isfile(cycles_file):
+    with open(cycles_file, 'rb') as f:
+        prev_cycles = pickle.load(f)
+    print('This model has been trained for', prev_cycles, 'epochs already')  
+else:
+    prev_cycles = 0
+    print('This model NOT been trained yet') 
+```
+
+```python
+num_cycles = 4
+
+file = ft_file + str(prev_cycles)
+learner_file = base_path/file
+callback_save_file = str(learner_file) + '_auto'
+
+learn.fit_one_cycle(num_cycles, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
                     callbacks=[
                         callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
                         # CSVLogger only logs when num_cycles are complete

@@ -369,7 +369,7 @@ if os.path.isfile(str(init_model_file) + '.pth'):
     print('loaded initial learner')
 else:
     print('Training new initial learner')
-    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+    learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -390,7 +390,7 @@ if os.path.isfile(str(freeze_two) + '.pth'):
 else:
     print('Training new freeze_two learner')
     learn.freeze_to(-2)
-    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -406,7 +406,7 @@ if os.path.isfile(str(freeze_three) + '.pth'):
 else:
     print('Training new freeze_three learner')
     learn.freeze_to(-3)
-    learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -445,7 +445,7 @@ file = ft_file + str(prev_cycles)
 learner_file = base_path/file
 callback_save_file = str(learner_file) + '_auto'
 
-learn.fit_one_cycle(num_cycles, slice(1e-4/(2.6**4),1e-4), moms=(0.8,0.7),
+learn.fit_one_cycle(num_cycles, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
                     callbacks=[
                         callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
                         # CSVLogger only logs when num_cycles are complete
