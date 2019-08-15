@@ -65,7 +65,7 @@ seed = 1776
 ### FOR TRANSFORMERXML
 # batch size of 8 requires more than 16GB RAM
 # batch size of 4 requires about 11 GB RAM
-bs=4
+bs=64
 ```
 
 ```python
@@ -141,27 +141,6 @@ learn.recorder.plot()
 
 ### AWD_LSTM training
 
-
-First unfrozen training with `learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7))` results in 
-
-    Total time: 22:36
-
-    epoch 	train_loss 	valid_loss 	accuracy 	time
-        0 	0.967378 	0.638532 	0.870705 	22:36
-        
-First frozen training with `pretrained=False` and bs of 64
-
-    Total time: 42:07
-
-    epoch 	train_loss 	valid_loss 	accuracy 	time
-        0 	2.440479 	2.399600 	0.545564 	42:07
-        
-Unfrozen run with `learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))` and `pretrained=False` and `bs=48`
-
-    Total time: 56:26
-
-    epoch 	train_loss 	valid_loss 	accuracy 	time
-        0 	2.530828 	2.415014 	0.545564 	56:26
 ```python
 if os.path.isfile(str(init_model_file) + '.pth'):
     learn.load(init_model_file)

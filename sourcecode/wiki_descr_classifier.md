@@ -252,7 +252,38 @@ else:
 ```
 
 ```python
-num_cycles = 7
+num_cycles = 4
+
+file = descr_ft_file + str(prev_cycles)
+learner_file = base_path/file
+callback_save_file = str(learner_file) + '_auto'
+
+learn.fit_one_cycle(num_cycles, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
+                    callbacks=[
+                        callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
+                        # CSVLogger only logs when num_cycles are complete
+                        callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                    ])
+file = descr_ft_file + str(prev_cycles + num_cycles)
+learner_file = base_path/file
+learn.save(learner_file)
+
+with open(cycles_file, 'wb') as f:
+    pickle.dump(num_cycles + prev_cycles, f)
+release_mem()
+```
+
+```python
+if os.path.isfile(cycles_file):
+    with open(cycles_file, 'rb') as f:
+        prev_cycles = pickle.load(f)
+    print('This model has been trained for', prev_cycles, 'epochs already')  
+else:
+    prev_cycles = 0
+```
+
+```python
+num_cycles = 3
 
 file = descr_ft_file + str(prev_cycles)
 learner_file = base_path/file

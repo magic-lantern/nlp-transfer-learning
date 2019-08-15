@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.1'
       jupytext_version: 1.2.1
   kernelspec:
-    display_name: Python 3
+    display_name: Python (fastai)
     language: python
-    name: python3
+    name: fastai
 ---
 
 # Based on our custom MIMIC language model, train a classifier
@@ -60,17 +60,19 @@ training_history_file = 'los_cl_history'
 Setup parameters for models
 
 ```python
-# original data set too large to work with in reasonable time due to limted GPU resources
-pct_data_sample = 0.1
+pct_data_sample = 0.2
+lm_pct_data_sample = 0.1
 # how much to hold out for validation
 valid_pct = 0.2
 # for repeatability - different seed than used with language model
 seed = 1776
+lm_seed = 42
 # for classifier, on unfrozen/full network training
 # batch size of 128 GPU uses ?? GB RAM
 # batch size of 96 GPU uses 22 GB RAM
+# batch size of 64 GPU uses 22 GB RAM w/20% sample
 # batch size of 48 GPU uses GB RAM
-bs=96
+bs=64
 ```
 
 ```python
@@ -366,10 +368,19 @@ print('Mode LOS:', df.los.mode()[0]) # returns a series, just want the value
 ```python
 #s.apply(pd.Series).stack().reset_index(drop=True)
 
-r = rowid_sample.groupby(['hadm_id'], as_index=False).agg({
-    'row_id': lambda x: x.str.split(',')
-})
+# some patients only have 1 note
+
+r = pd.concat([
+    rowid_sample[rowid_sample['row_id'].str.contains(',')].groupby(['hadm_id'], as_index=False).agg({
+        'row_id': lambda x: x.str.split(',')
+    }),
+    rowid_sample[~rowid_sample['row_id'].str.contains(',')]
+])
+```
+
+```python
 row_ids = r.row_id.apply(pd.Series).stack().reset_index(drop=True)
+row_ids = row_ids.astype(int)
 ```
 
 ```python
@@ -379,7 +390,7 @@ print(len(row_ids.unique())) # 33,914
 
 ```python
 # compare overlap between these notes and language model notes set
-lm_df = orig_df.sample(frac=pct_data_sample, random_state=42)
+lm_df = orig_df.sample(frac=lm_pct_data_sample, random_state=lm_seed)
 print('rows in dataframe for NN:', len(row_ids.unique()))
 print('rows in language model:', len(lm_df.ROW_ID.unique()))
 print('row_ids in both:', len(set(row_ids.unique()) & set(lm_df.ROW_ID.unique())))
@@ -441,6 +452,18 @@ learn.lr_find()
 learn.recorder.plot()
 ```
 
+```python
+label_counts = df.groupby('los').size()
+label_sum = len(df.los)
+weights = [1 - count/label_sum for count in label_counts]
+```
+
+```python
+loss_weights = torch.FloatTensor(weights).cuda()
+learn.crit = partial(F.cross_entropy, weight=loss_weights)
+learn.crit
+```
+
 Change learning rate based on results from the above plot.
 
 Next several cells test various learning rates to find ideal learning rate
@@ -498,6 +521,47 @@ learn.fit_one_cycle(1, 1e-2, moms=(0.8,0.7))
 
      epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
         0	2.199809	2.068873	0.343270	0.217603	03:38
+
+<!-- #endregion -->
+
+<!-- #region -->
+### With smaller batch size (64) and larger data set (20%)
+
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.115544	2.103010	0.338302	0.214982	06:13
+        
+```python        
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.058087	1.996725	0.357724	0.232691	06:31
+
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.fit_one_cycle(1, 1e-2, moms=(0.8,0.7),
+                       callbacks=[
+                           callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                       ])
+```
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	2.056259	1.982073	0.361789	0.251145	07:53
 <!-- #endregion -->
 
 ### Train with selected learning rate
@@ -508,6 +572,13 @@ Results from `learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))`
 
     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
         0 	2.280483 	1.603017 	0.424571 	0.400360 	02:58
+```python
+#try adjusting weights? - tested 0.25, .5, .75, 1.0 - .5 seemed best
+# learn = None
+# learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.25, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+# learn.load_encoder(enc_file)
+# learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
+```
 
 ```python
 if os.path.isfile(str(init_model_file) + '.pth'):
@@ -605,7 +676,7 @@ if os.path.isfile(str(freeze_three) + '.pth'):
 else:
     print('Training new freeze_three learner')
     learn.freeze_to(-3)
-    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(1e-3/(2.6**4),1e-3), moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -689,6 +760,19 @@ learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accur
 learn.load_encoder(enc_file)
 learn.load(freeze_three)
 learn.unfreeze()
+
+learn.fit_one_cycle(2, slice(1e-4/(2.6**4),1e-4), moms=(0.8,0.7))
+```
+
+```python
+learn = None
+release_mem()
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
+learn.load_encoder(enc_file)
+learn.load(freeze_three)
+learn.unfreeze()
+
+learn.fit_one_cycle(2, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7))
 ```
 
 ```python
@@ -701,6 +785,24 @@ else:
     print('This model NOT been trained yet') 
 ```
 
+Best result (f1) with `slice(1e-2/(2.6**4),1e-2)` additional cycles beyond first 3 were worse. Perhaps need smaller learning rate or larger sample size?
+
+    2	2.011113	2.076153	0.364950	0.280043	04:18
+
+5e-3
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	1.929325	1.923943	0.378952	0.281380	08:22
+        1	1.892216	1.914284	0.380759	0.281807	09:44
+        2	1.864399	1.914539	0.375339	0.282128	08:17
+        
+1e-4
+
+    epoch	train_loss	valid_loss	accuracy	f_beta	time
+        0	1.909526	1.940800	0.368564	0.247643	10:08
+        1	1.914408	1.940747	0.367660	0.246122	08:00
+        2	1.924313	1.940947	0.368112	0.247315	08:51
+
 ```python
 num_cycles = 3
 
@@ -708,7 +810,7 @@ file = ft_file + str(prev_cycles)
 learner_file = base_path/file
 callback_save_file = str(learner_file) + '_auto'
 
-learn.fit_one_cycle(num_cycles, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+learn.fit_one_cycle(num_cycles, slice(1e-4/(2.6**4),1e-4), moms=(0.8,0.7),
                     callbacks=[
                         callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
                         # CSVLogger only logs when num_cycles are complete
@@ -721,6 +823,14 @@ learn.save(learner_file)
 with open(cycles_file, 'wb') as f:
     pickle.dump(num_cycles + prev_cycles, f)
 release_mem()
+```
+
+```python
+interp = ClassificationInterpretation.from_learner(learn)
+
+losses,idxs = interp.top_losses()
+
+interp.plot_confusion_matrix(figsize=(12,12), dpi=60)
 ```
 
 ```python
