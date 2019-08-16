@@ -433,13 +433,18 @@ else:
     print('created new data bunch')
 ```
 
-### Using weighted F1 to account for class imbalance
+### Account for class imbalance
+
+#### Metrics
+
+For metric to compare results, using weighted F1 (also still showing accuracy)
 
 See https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
 
 ```python
 learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
 learn.load_encoder(enc_file)
+print('created learner')
 ```
 
 ```python
@@ -452,9 +457,37 @@ learn.lr_find()
 learn.recorder.plot()
 ```
 
+<!-- #region -->
+Change learning rate based on results from the above plot.
+
+#### Adjusting weights based on class
+
+Tried https://forums.fast.ai/t/correcting-class-imbalance-for-nlp/22152/7
+
+While this seems to help a small amount, doesn't do enough to compensate for most predictions resulting in class 10.
+
+Perhaps needs to be reapplied? Or manually adjusted further to reduce likelihood of class 10.
+
+Another alternative:
+
+Tried this, but there appears to be some performance problem - it changes just the lr_finder from running in a few minutes to estimated to take 1.5 hours.
+
+https://forums.fast.ai/t/adding-weighted-sampler/32873/4
+
+```python
+learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)], callback_fns=[callbacks.OverSamplingCallback])
+learn.load_encoder(enc_file)
+print('created learner')
+```
+
+
+<!-- #endregion -->
+
 ```python
 label_counts = df.groupby('los').size()
-label_sum = len(df.los)
+orig_count = label_counts.iloc[-1]
+label_counts.iloc[-1] = orig_count * 50
+label_sum = len(df.los) + (label_counts.iloc[-1] - orig_count)
 weights = [1 - count/label_sum for count in label_counts]
 ```
 
@@ -464,67 +497,9 @@ learn.crit = partial(F.cross_entropy, weight=loss_weights)
 learn.crit
 ```
 
-Change learning rate based on results from the above plot.
-
+<!-- #region -->
 Next several cells test various learning rates to find ideal learning rate
 
-<!-- #region -->
-```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 5e-1, moms=(0.8,0.7))
-```
-
-     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0	4.441254	2.457666	0.301716	0.174702	03:54
-<!-- #endregion -->
-
-<!-- #region -->
-```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 3e-1, moms=(0.8,0.7))
-```
-
-     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0	2.329859	2.146445	0.319783	0.154967	03:44
-<!-- #endregion -->
-
-<!-- #region -->
-```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7))
-```
-
-     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0	2.192971	2.083736	0.345077	0.211943	03:17
-<!-- #endregion -->
-
-<!-- #region -->
-```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7))
-```
-
-     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0	2.183936	2.054368	0.359530	0.233471	03:56
-<!-- #endregion -->
-
-<!-- #region -->
-```python
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.fit_one_cycle(1, 1e-2, moms=(0.8,0.7))
-```
-
-     epoch 	train_loss 	valid_loss 	accuracy 	f_beta 	time
-        0	2.199809	2.068873	0.343270	0.217603	03:38
-
-<!-- #endregion -->
-
-<!-- #region -->
 ### With smaller batch size (64) and larger data set (20%)
 
 ```python
@@ -754,28 +729,6 @@ learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7))
 <!-- #endregion -->
 
 ```python
-learn = None
-release_mem()
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.load(freeze_three)
-learn.unfreeze()
-
-learn.fit_one_cycle(2, slice(1e-4/(2.6**4),1e-4), moms=(0.8,0.7))
-```
-
-```python
-learn = None
-release_mem()
-learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
-learn.load_encoder(enc_file)
-learn.load(freeze_three)
-learn.unfreeze()
-
-learn.fit_one_cycle(2, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7))
-```
-
-```python
 if os.path.isfile(cycles_file):
     with open(cycles_file, 'rb') as f:
         prev_cycles = pickle.load(f)
@@ -826,14 +779,6 @@ release_mem()
 ```
 
 ```python
-interp = ClassificationInterpretation.from_learner(learn)
-
-losses,idxs = interp.top_losses()
-
-interp.plot_confusion_matrix(figsize=(12,12), dpi=60)
-```
-
-```python
 if os.path.isfile(cycles_file):
     with open(cycles_file, 'rb') as f:
         prev_cycles = pickle.load(f)
@@ -850,7 +795,7 @@ file = ft_file + str(prev_cycles)
 learner_file = base_path/file
 callback_save_file = str(learner_file) + '_auto'
 
-learn.fit_one_cycle(num_cycles, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+learn.fit_one_cycle(num_cycles, slice(1e-4/(2.6**4),1e-4), moms=(0.8,0.7),
                     callbacks=[
                         callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
                         # CSVLogger only logs when num_cycles are complete
@@ -863,6 +808,12 @@ learn.save(learner_file)
 with open(cycles_file, 'wb') as f:
     pickle.dump(num_cycles + prev_cycles, f)
 release_mem()
+```
+
+```python
+interp = ClassificationInterpretation.from_learner(learn)
+interp.top_losses()
+interp.plot_confusion_matrix(figsize=(12,12), dpi=60)
 ```
 
 ```python

@@ -7,9 +7,9 @@ jupyter:
       format_version: '1.1'
       jupytext_version: 1.2.1
   kernelspec:
-    display_name: Python 3
+    display_name: Python (fastai)
     language: python
-    name: python3
+    name: fastai
 ---
 
 # Based on general purpose language model, train a Length of Stay classifier
@@ -366,13 +366,32 @@ else:
     print('created new data bunch')
 ```
 
-### Using weighted F1 to account for class imbalance
+### Account for class imbalance
+
+Using weighted F1 as metric
 
 See https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html
+
+Also adjust weights of network output to reduce likelihood of los > 9
 
 ```python
 learn = text_classifier_learner(data_cl, AWD_LSTM, drop_mult=0.5, metrics=[accuracy, FBeta(average='weighted', beta=1)])
 learn.load_encoder(enc_file)
+print('loaded encoder')
+```
+
+```python
+label_counts = df.groupby('los').size()
+orig_count = label_counts.iloc[-1]
+label_counts.iloc[-1] = orig_count * 50
+label_sum = len(df.los) + (label_counts.iloc[-1] - orig_count)
+weights = [1 - count/label_sum for count in label_counts]
+```
+
+```python
+loss_weights = torch.FloatTensor(weights).cuda()
+learn.crit = partial(F.cross_entropy, weight=loss_weights)
+learn.crit
 ```
 
 ```python
@@ -453,11 +472,6 @@ else:
 
 ```python
 learn.unfreeze()
-```
-
-```python
-learn.lr_find()
-learn.recorder.plot()
 ```
 
 ```python
