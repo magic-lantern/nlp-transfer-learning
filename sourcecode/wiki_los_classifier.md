@@ -52,8 +52,8 @@ training_history_file = 'wiki_los_cl_history'
 Setup parameters for models
 
 ```python
-# original data set too large to work with in reasonable time due to limted GPU resources
-pct_data_sample = 0.1
+pct_data_sample = 0.2
+lm_pct_data_sample = 0.1
 # how much to hold out for validation
 valid_pct = 0.2
 # for repeatability - different seed than used with language model
@@ -63,7 +63,7 @@ lm_seed = 42
 # batch size of 128 GPU uses ?? GB RAM
 # batch size of 96 GPU uses 22 GB RAM
 # batch size of 48 GPU uses GB RAM
-bs=96
+bs=64
 ```
 
 ```python
@@ -287,10 +287,16 @@ print('Mode LOS:', df.los.mode()[0]) # returns a series, just want the value
 ```python
 #s.apply(pd.Series).stack().reset_index(drop=True)
 
-r = rowid_sample.groupby(['hadm_id'], as_index=False).agg({
-    'row_id': lambda x: x.str.split(',')
-})
+# some patients only have 1 note
+
+r = pd.concat([
+    rowid_sample[rowid_sample['row_id'].str.contains(',')].groupby(['hadm_id'], as_index=False).agg({
+        'row_id': lambda x: x.str.split(',')
+    }),
+    rowid_sample[~rowid_sample['row_id'].str.contains(',')]
+])
 row_ids = r.row_id.apply(pd.Series).stack().reset_index(drop=True)
+row_ids = row_ids.astype(int)
 ```
 
 ```python
@@ -300,7 +306,7 @@ print(len(row_ids.unique())) # 33,914
 
 ```python
 # compare overlap between these notes and language model notes set
-lm_df = orig_df.sample(frac=pct_data_sample, random_state=42)
+lm_df = orig_df.sample(frac=lm_pct_data_sample, random_state=42)
 print('rows in dataframe for NN:', len(row_ids.unique()))
 print('rows in language model:', len(lm_df.ROW_ID.unique()))
 print('row_ids in both:', len(set(row_ids.unique()) & set(lm_df.ROW_ID.unique())))
@@ -399,7 +405,7 @@ if os.path.isfile(str(init_model_file) + '.pth'):
     print('loaded initial learner')
 else:
     print('Training new initial learner')
-    learn.fit_one_cycle(1, 1e-1, moms=(0.8,0.7),
+    learn.fit_one_cycle(1, 5e-2, moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -420,7 +426,7 @@ if os.path.isfile(str(freeze_two) + '.pth'):
 else:
     print('Training new freeze_two learner')
     learn.freeze_to(-2)
-    learn.fit_one_cycle(1, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(5e-2/(2.6**4),5e-2), moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -436,7 +442,7 @@ if os.path.isfile(str(freeze_three) + '.pth'):
 else:
     print('Training new freeze_three learner')
     learn.freeze_to(-3)
-    learn.fit_one_cycle(1, slice(5e-3/(2.6**4),5e-3), moms=(0.8,0.7),
+    learn.fit_one_cycle(1, slice(1e-3/(2.6**4),1e-3), moms=(0.8,0.7),
                        callbacks=[
                            callbacks.CSVLogger(learn, filename=training_history_file, append=True)
                        ])
@@ -469,7 +475,7 @@ else:
 ```
 
 ```python
-num_cycles = 7
+num_cycles = 3
 
 file = ft_file + str(prev_cycles)
 learner_file = base_path/file
@@ -491,5 +497,42 @@ release_mem()
 ```
 
 ```python
+interp = ClassificationInterpretation.from_learner(learn)
+
+losses,idxs = interp.top_losses()
+
+interp.plot_confusion_matrix(figsize=(12,12), dpi=60)
+```
+
+```python
+if os.path.isfile(cycles_file):
+    with open(cycles_file, 'rb') as f:
+        prev_cycles = pickle.load(f)
+    print('This model has been trained for', prev_cycles, 'epochs already')  
+else:
+    prev_cycles = 0
+    print('This model NOT been trained yet') 
+```
+
+```python
+num_cycles = 4
+
+file = ft_file + str(prev_cycles)
+learner_file = base_path/file
+callback_save_file = str(learner_file) + '_auto'
+
+learn.fit_one_cycle(num_cycles, slice(1e-2/(2.6**4),1e-2), moms=(0.8,0.7),
+                    callbacks=[
+                        callbacks.SaveModelCallback(learn, every='epoch', monitor='accuracy', name=callback_save_file),
+                        # CSVLogger only logs when num_cycles are complete
+                        callbacks.CSVLogger(learn, filename=training_history_file, append=True)
+                    ])
+file = ft_file + str(prev_cycles + num_cycles)
+learner_file = base_path/file
+learn.save(learner_file)
+
+with open(cycles_file, 'wb') as f:
+    pickle.dump(num_cycles + prev_cycles, f)
+release_mem()
 
 ```
