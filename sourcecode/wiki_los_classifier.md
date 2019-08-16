@@ -511,14 +511,6 @@ release_mem()
 ```
 
 ```python
-interp = ClassificationInterpretation.from_learner(learn)
-
-losses,idxs = interp.top_losses()
-
-interp.plot_confusion_matrix(figsize=(12,12), dpi=60)
-```
-
-```python
 if os.path.isfile(cycles_file):
     with open(cycles_file, 'rb') as f:
         prev_cycles = pickle.load(f)
@@ -548,5 +540,15 @@ learn.save(learner_file)
 with open(cycles_file, 'wb') as f:
     pickle.dump(num_cycles + prev_cycles, f)
 release_mem()
+
+```
+
+```python
+interp = ClassificationInterpretation.from_learner(learn)
+interp.top_losses()
+interp.plot_confusion_matrix(figsize=(12,12), dpi=60)
+```
+
+```python
 
 ```
