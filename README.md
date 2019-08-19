@@ -30,3 +30,6 @@ In the Python Jupyter notebooks, the data is assumed to be located in the direct
     conda install -y -c conda-forge jupytext
     conda install -y -c conda-forge jupyterlab
     conda install -y -c conda-forge altair vega_datasets
+
+
+*Project Structure and Organization based off https://github.com/callahantiff/Abra-Collaboratory/*
